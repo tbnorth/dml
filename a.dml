@@ -1,0 +1,369 @@
+<?xml version="1.0"?>
+<!DOCTYPE dml SYSTEM "dml.dtd">
+<dml db_schema='test'>
+  <table id="_tbl_township" name="township">
+    <field id="_fld_township_township" name="township" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description>1000*town+100*dir*range, dir=0 west, 1 east.  Matches TWPDIRRNG in DNR SECTIC Township layer.</description>
+    </field>
+    <field id="_fld_township_domcov" name="domcov" type="character varying(30)" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Dominant cover type</description>
+    </field>
+    <field id="_fld_township_subdmcv" name="subdmcv" type="character varying(30)" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Sub-dominant cover type</description>
+    </field>
+  </table>
+  <table id="_tbl_cluster" name="cluster">
+    <field id="_fld_cluster_cluster" name="cluster" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description>NRRI cluster 1-67</description>
+    </field>
+    <field id="_fld_cluster_region" name="region" type="smallint" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>1,2,3 SE,W,NE NRRI region 1-3 for random stratification, not the same as MN BBA region in block.</description>
+    </field>
+    <field id="_fld_cluster_random" name="random" type="numeric" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>random number 0-1 assigned once and used for random ordering</description>
+    </field>
+    <field id="_fld_cluster_subregion" name="subregion" type="smallint" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>subregion 1 to 4 or 5 for further stratification in regions to avoid clumping</description>
+    </field>
+    <field id="_fld_cluster_the_geom" name="the_geom" type="geometry" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>POSTGIS multipolygon for this cluster, should be union of block polygons</description>
+    </field>
+  </table>
+  <table id="_tbl_block" name="block">
+    <field id="_fld_block_block" name="block" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_block_town" name="town" type="smallint" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>PLS township number, bands heading increasing north, inconsistently.</description>
+    </field>
+    <field id="_fld_block_rdir" name="rdir" type="smallint" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>PLS range direction, 0=W (most of state), 1=E (tip of Arrowhead, E of Grand Marais)</description>
+    </field>
+    <field id="_fld_block_rang" name="rang" type="smallint" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>PLS range number, bands heading increasing west, inconsistently.</description>
+    </field>
+    <field id="_fld_block_corner" name="corner" type="smallint" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>1,2,3,4 = NE,SE,SW,NW (plus a few zeros for junk block pieces)</description>
+    </field>
+    <field id="_fld_block_township" name="township" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_township_township"/>
+      <description>1000*town+100*dir*range, dir=0 west, 1 east.  Matches TWPDIRRNG in DNR SECTIC Township layer.</description>
+    </field>
+    <field id="_fld_block_region" name="region" type="smallint" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>1-32, the MN BBA region codes</description>
+    </field>
+    <field id="_fld_block_block_name" name="block_name" type="character varying(20)" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>T&lt;town&gt;[R|X]&lt;rang&gt;&lt;letter&gt;
+R|X = rdir 0|1, letter=a,b,c,d for corner 1,2,3,4
+</description>
+    </field>
+    <field id="_fld_block_priority" name="priority" type="smallint" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>0,1 = not-priority, priority</description>
+    </field>
+    <field id="_fld_block_cluster" name="cluster" type="smallint" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_cluster_cluster"/>
+      <description>NRRI cluster 1-67</description>
+    </field>
+    <field id="_fld_block_the_geom" name="the_geom" type="geometry" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>POSTGIS multipolygon for this block</description>
+    </field>
+  </table>
+  <table id="_tbl_distcode" name="distcode">
+    <field id="_fld_distcode_distcode" name="distcode" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_distcode_disttext" name="disttext" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>text for distance code</description>
+    </field>
+  </table>
+  <table id="_tbl_bba_evidence" name="bba_evidence">
+    <field id="_fld_bba_evidence_bba_evidence" name="bba_evidence" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_bba_evidence_category" name="category" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Probable, Possible, Confirmed, Observed</description>
+    </field>
+    <field id="_fld_bba_evidence_code" name="code" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>text code for onservation type</description>
+    </field>
+    <field id="_fld_bba_evidence_evidence" name="evidence" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>description of evidence required for observation type</description>
+    </field>
+    <field id="_fld_bba_evidence_ordering" name="ordering" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>ordering of observation types from uncertain to certain</description>
+    </field>
+  </table>
+  <table id="_tbl_mncode" name="mncode">
+    <field id="_fld_mncode_mncode" name="mncode" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_mncode_common" name="common" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>common name</description>
+    </field>
+    <field id="_fld_mncode_abbrev" name="abbrev" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>4 letter abbreviation</description>
+    </field>
+  </table>
+  <table id="_tbl_timecode" name="timecode">
+    <field id="_fld_timecode_timecode" name="timecode" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_timecode_timetext" name="timetext" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>text describing time interval</description>
+    </field>
+  </table>
+  <table id="_tbl_typecode" name="typecode">
+    <field id="_fld_typecode_typecode" name="typecode" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_typecode_typeltr" name="typeltr" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>letter code for observation type</description>
+    </field>
+    <field id="_fld_typecode_typetext" name="typetext" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>name of observation type</description>
+    </field>
+  </table>
+  <table id="_tbl_project" name="project">
+    <field id="_fld_project_project" name="project" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_project_name" name="name" type="text" primary_key="False" nullable="True" editable="True" unique="True">
+      <description>Name of project</description>
+    </field>
+  </table>
+  <table id="_tbl_coord_origin" name="coord_origin">
+    <field id="_fld_coord_origin_coord_origin" name="coord_origin" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_coord_origin_name" name="name" type="text" primary_key="False" nullable="False" editable="True" unique="True">
+      <description>Name of coord origin</description>
+    </field>
+    <field id="_fld_coord_origin_priority" name="priority" type="int" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Priority for selecting "current" coord when more than one coord exists for a year,pointnum combination.</description>
+    </field>
+  </table>
+  <table id="_tbl_habcode" name="habcode">
+    <field id="_fld_habcode_habcode" name="habcode" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_habcode_habtext" name="habtext" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>name of habitat</description>
+    </field>
+  </table>
+  <table id="_tbl_noisecode" name="noisecode">
+    <field id="_fld_noisecode_noisecode" name="noisecode" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_noisecode_noisetext" name="noisetext" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>description of noise conditions</description>
+    </field>
+  </table>
+  <table id="_tbl_skycode" name="skycode">
+    <field id="_fld_skycode_skycode" name="skycode" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_skycode_skytext" name="skytext" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>name of sky conditions</description>
+    </field>
+  </table>
+  <table id="_tbl_windcode" name="windcode">
+    <field id="_fld_windcode_windcode" name="windcode" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_windcode_windtext" name="windtext" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>name of wind condition</description>
+    </field>
+  </table>
+  <table id="_tbl_coord" name="coord">
+    <field id="_fld_coord_coord" name="coord" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_coord_block" name="block" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_block_block"/>
+      <description></description>
+    </field>
+    <field id="_fld_coord_geom" name="geom" type="geometry" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>POSTGIS point for this coord</description>
+    </field>
+    <field id="_fld_coord_pointnum" name="pointnum" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Point number, see point.pointnum for meanings for project 1</description>
+    </field>
+    <field id="_fld_coord_pointid" name="pointid" type="character varying(60)" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>&lt;pointnum&gt;.&lt;block.block__name&gt; for generated points of project 1, otherwise point name entered on GPS</description>
+    </field>
+    <field id="_fld_coord_year" name="year" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Year point created</description>
+    </field>
+    <field id="_fld_coord_comment" name="comment" type="text" primary_key="False" nullable="True" editable="True" unique="False">
+      <description>Comment associated with point, e.g. Access from Lake Road.</description>
+    </field>
+    <field id="_fld_coord_coord_origin" name="coord_origin" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_coord_origin_coord_origin"/>
+      <description></description>
+    </field>
+    <field id="_fld_coord_project" name="project" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_project_project"/>
+      <description></description>
+    </field>
+  </table>
+  <table id="_tbl_point" name="point">
+    <field id="_fld_point_point" name="point" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_point_project" name="project" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_project_project"/>
+      <description></description>
+    </field>
+    <field id="_fld_point_block" name="block" type="ID" primary_key="False" nullable="True" editable="True" unique="False">
+      <foreign_key target="_fld_block_block"/>
+      <description></description>
+    </field>
+    <field id="_fld_point_block_name" name="block_name" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>name of block, should match block.block_name</description>
+    </field>
+    <field id="_fld_point_date" name="date" type="date" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>date of point count</description>
+    </field>
+    <field id="_fld_point_pointnum" name="pointnum" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>for project 1, points 1,2,3 are random, dominant habitat, and subdominant habitat, respectively.  Values 4,5,6 are considered synonyms for 1,2,3, used for GPS point labeling in the field.</description>
+    </field>
+    <field id="_fld_point_habcode" name="habcode" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_habcode_habcode"/>
+      <description></description>
+    </field>
+    <field id="_fld_point_observer" name="observer" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>name of observer</description>
+    </field>
+    <field id="_fld_point_time" name="time" type="time" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>start time of point count</description>
+    </field>
+    <field id="_fld_point_temperature" name="temperature" type="real" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>degrees celcius at start of point count</description>
+    </field>
+    <field id="_fld_point_windcode" name="windcode" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_windcode_windcode"/>
+      <description></description>
+    </field>
+    <field id="_fld_point_skycode" name="skycode" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_skycode_skycode"/>
+      <description></description>
+    </field>
+    <field id="_fld_point_noisecode" name="noisecode" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_noisecode_noisecode"/>
+      <description></description>
+    </field>
+    <field id="_fld_point_entrynum" name="entrynum" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>1 or 2 for first or second entry  ALL ANALYSIS SHOULD BE RESTRICTED TO entrynum=1</description>
+    </field>
+    <field id="_fld_point_comment" name="comment" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>comment for point</description>
+    </field>
+    <field id="_fld_point_matched" name="matched" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>internal use for dual entry checking system</description>
+    </field>
+    <field id="_fld_point_cluster" name="cluster" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>obsolete - used for managing data correction</description>
+    </field>
+    <field id="_fld_point_coord" name="coord" type="ID" primary_key="False" nullable="True" editable="True" unique="False">
+      <foreign_key target="_fld_coord_coord"/>
+      <description>convenience (i.e. redundant) link to coord for this point</description>
+    </field>
+  </table>
+  <table id="_tbl_sampling_type" name="sampling_type">
+    <field id="_fld_sampling_type_sampling_type" name="sampling_type" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_sampling_type_sampling_text" name="sampling_text" type="text" primary_key="False" nullable="False" editable="True" unique="True">
+      <description>Name of sampling type</description>
+    </field>
+  </table>
+  <table id="_tbl_sampling_status" name="sampling_status">
+    <field id="_fld_sampling_status_sampling_status" name="sampling_status" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_sampling_status_status_text" name="status_text" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Name of status</description>
+    </field>
+    <field id="_fld_sampling_status_data" name="data" type="boolean" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Should generate data</description>
+    </field>
+    <field id="_fld_sampling_status_data_in" name="data_in" type="boolean" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Data received</description>
+    </field>
+  </table>
+  <table id="_tbl_sampling" name="sampling">
+    <field id="_fld_sampling_sampling" name="sampling" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_sampling_block" name="block" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_block_block"/>
+      <description></description>
+    </field>
+    <field id="_fld_sampling_year" name="year" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>Year in which sampling should occur</description>
+    </field>
+    <field id="_fld_sampling_sampling_type" name="sampling_type" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_sampling_type_sampling_type"/>
+      <description></description>
+    </field>
+    <field id="_fld_sampling_sampling_status" name="sampling_status" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_sampling_status_sampling_status"/>
+      <description></description>
+    </field>
+    <field id="_fld_sampling_point" name="point" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>1,2,3 - point level rather than block level needed to manage mixed completion of a block</description>
+    </field>
+  </table>
+  <table id="_tbl_birdobs" name="birdobs">
+    <field id="_fld_birdobs_birdobs" name="birdobs" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_birdobs_species" name="species" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_mncode_mncode"/>
+      <description></description>
+    </field>
+    <field id="_fld_birdobs_timecode" name="timecode" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_timecode_timecode"/>
+      <description></description>
+    </field>
+    <field id="_fld_birdobs_typecode" name="typecode" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_typecode_typecode"/>
+      <description></description>
+    </field>
+    <field id="_fld_birdobs_point" name="point" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_point_point"/>
+      <description></description>
+    </field>
+    <field id="_fld_birdobs_distcode" name="distcode" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_distcode_distcode"/>
+      <description></description>
+    </field>
+    <field id="_fld_birdobs_howmany" name="howmany" type="integer" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>number of individuals in this observation, may be estimated for flocks</description>
+    </field>
+    <field id="_fld_birdobs_bba_evidence" name="bba_evidence" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_bba_evidence_bba_evidence"/>
+      <description></description>
+    </field>
+  </table>
+  <table id="_tbl_b_image" name="b_image">
+    <field id="_fld_b_image_id" name="id" type="ID" primary_key="True" nullable="False" editable="True" unique="True">
+      <description></description>
+    </field>
+    <field id="_fld_b_image_point" name="point" type="ID" primary_key="False" nullable="False" editable="True" unique="False">
+      <foreign_key target="_fld_point_point"/>
+      <description></description>
+    </field>
+    <field id="_fld_b_image_filename" name="filename" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>filename for image, needs prefix of common path component</description>
+    </field>
+    <field id="_fld_b_image_direction" name="direction" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>compass direction faced when picture was taken</description>
+    </field>
+    <field id="_fld_b_image_comment" name="comment" type="text" primary_key="False" nullable="False" editable="True" unique="False">
+      <description>comment for picture</description>
+    </field>
+  </table>
+</dml>
+
+
