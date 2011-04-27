@@ -1,5 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE dml SYSTEM "dml.dtd">
+<?xml-stylesheet href="common.css"?>
+<?xml-stylesheet href="single-col.css" media="all and (max-width: 30em)"?>
 <dml>
   <name>A DTD test of all dml elements</name>
   <description>Not a real schema, just a test of all elements</description>
@@ -34,6 +36,7 @@
       <foreign_key target='f1'/>
       <attr key='irrelevant'>Don't look at me</attr>
     </field>
+    <!-- nearly done -->
   </table>
 </dml>
 <!--
