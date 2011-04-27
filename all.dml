@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!DOCTYPE dml SYSTEM "dml.dtd">
+<dml>
+  <name>A DTD test of all dml elements</name>
+  <description>Not a real schema, just a test of all elements</description>
+  <attr key='irrelevant'>Don't look at me</attr>
+  <log>
+    <log_entry date='20100402 08:34'>Here's an entry</log_entry>
+    <log_entry date='20100402 08:34'>Another entry</log_entry>
+  </log>
+  <table id='t1'>
+    <name>table1</name>
+    <name context='ucase'>TABLE1</name>
+    <description>A table with two names</description>
+    <attr key='irrelevant'>Don't look at me</attr>
+    <field id='f1'>
+      <name>field1</name>
+      <name context='ucase'>field1</name>
+      <description>A field with two names</description>
+      <type>ID</type>
+      <attr key='irrelevant'>Don't look at me</attr>
+    </field>
+  </table>
+  <table id='t2'>
+    <name>table1</name>
+    <name context='ucase'>TABLE1</name>
+    <description>A table with two names</description>
+    <attr key='irrelevant'>Don't look at me</attr>
+    <field id='f2'>
+      <name>field1</name>
+      <name context='ucase'>field1</name>
+      <description>A field with two names</description>
+      <type>ID</type>
+      <foreign_key target='f1'/>
+      <attr key='irrelevant'>Don't look at me</attr>
+    </field>
+  </table>
+</dml>
+<!--
+python -c 'from lxml import etree as e;p=e.XMLParser(dtd_validation=True);e.parse("all.dml",parser=p)'
+-->

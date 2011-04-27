@@ -1,19 +1,21 @@
-<!ELEMENT dml (name,description?,log?,db_namespace?,table+)>
-<!ELEMENT name (#PCDATA)>
+<!ELEMENT dml (name,description?,attr*,log?,table+)>
 <!ELEMENT description (#PCDATA)>
-<!ELEMENT log (log_entry)>
-<!ELEMENT log_entry (date,description)>
-<!ELEMENT db_namespace (#PCDATA)>
+    <!ATTLIST description context CDATA #IMPLIED>
+<!ELEMENT log (log_entry+)>
+<!ELEMENT log_entry (#PCDATA)>
+    <!ATTLIST log_entry date CDATA #REQUIRED>
 <!ELEMENT date (#PCDATA)>
-<!ELEMENT table (name+,description?,db_namespace?,field+)>
-  <!ATTLIST table id ID #REQUIRED>
-<!ELEMENT field (name+,type+,description?,foreign_key*)>
-  <!ATTLIST field id ID #REQUIRED>
-  <!ATTLIST field primary_key (true|false) false>
-  <!ATTLIST field unique (true|false) false>
+<!ELEMENT table (name+,description?,attr*,field+)>
+    <!ATTLIST table id ID #REQUIRED>
+<!ELEMENT field (name+,description?,type+,foreign_key*,attr*)>
+    <!ATTLIST field id ID #REQUIRED>
+    <!ATTLIST field primary_key (true|false) 'false'>
+    <!ATTLIST field unique (true|false) 'false'>
 <!ELEMENT name (#PCDATA)>
-  <!ATTLIST name context CDATA #IMPLIED>
+    <!ATTLIST name context CDATA #IMPLIED>
 <!ELEMENT type (#PCDATA)>
-  <!ATTLIST type context CDATA #IMPLIED>
+    <!ATTLIST type context CDATA #IMPLIED>
 <!ELEMENT foreign_key EMPTY>
-  <!ATTLIST foreign_key target IDREF>
+    <!ATTLIST foreign_key target IDREF #REQUIRED>
+<!ELEMENT attr (#PCDATA)>
+    <!ATTLIST attr key CDATA #REQUIRED>
