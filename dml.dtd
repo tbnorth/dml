@@ -9,8 +9,9 @@
     <!ATTLIST table id ID #REQUIRED>
 <!ELEMENT field (name+,description?,type+,foreign_key*,attr*)>
     <!ATTLIST field id ID #REQUIRED>
-    <!ATTLIST field primary_key (true|false) 'false'>
-    <!ATTLIST field unique (true|false) 'false'>
+    <!ATTLIST field primary_key (true|false) #REQUIRED>
+    <!ATTLIST field unique (true|false) #REQUIRED>
+    <!ATTLIST field allow_null (true|false) #REQUIRED>
 <!ELEMENT name (#PCDATA)>
     <!ATTLIST name context CDATA #IMPLIED>
 <!ELEMENT type (#PCDATA)>
