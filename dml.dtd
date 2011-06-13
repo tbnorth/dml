@@ -17,6 +17,6 @@
 <!ELEMENT type (#PCDATA)>
     <!ATTLIST type context CDATA #IMPLIED>
 <!ELEMENT foreign_key EMPTY>
-    <!ATTLIST foreign_key target IDREF #REQUIRED>
+    <!ATTLIST foreign_key target CDATA #REQUIRED>
 <!ELEMENT attr (#PCDATA)>
     <!ATTLIST attr key CDATA #REQUIRED>

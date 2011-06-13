@@ -418,6 +418,15 @@ class DjangoOut(OutputCollector):
         for table in schema['_tables']:
             self.emit("admin.site.register(%s)" % table.capitalize())
         self.emit('"""\n')
+
+        self.emit("""def dml_dj_set_attr(table, field, attr):
+            for fld in table._meta.fields:
+                if fld.name == field:
+                    fld.dml_attr = attr
+                    break
+            else:
+                raise Exception("Could not find field %s"%field)
+        """)
     def start_table(self, table):
 
         if not table.comment:
@@ -431,15 +440,43 @@ class DjangoOut(OutputCollector):
         self.emit("class %s (models.Model):  # %s" % (self.upcase(table.name), "AUTOMATICALLY GENERATED"))
         self.emit('%s\n    """' % wrapper.fill(comment))
 
+        # start Meta class
+        self.emit()
+        self.emit('    class Meta:')
+        self.emit('        pass')
+        
         if self.db_schema is not None:
-            self.emit()
-            self.emit('    class Meta:')
             self.emit('        db_table = "%s%s"' % (self.db_schema, table.name))
-            
-            if table.attr.get('dj_order'):
-                self.emit('        ordering = %s' % repr(table.attr.get('dj_order').split()))
-            self.emit()
+        
+        if table.attr.get('dj_order'):
+            self.emit('        ordering = %s' % repr(table.attr.get('dj_order').split()))
+        self.emit()
+        
+        
+        # end of Meta class
+
+        # __unicode__
+        if table.attr.get('dj_name'):
+            self.emit('    def __unicode__(self):')
+            self.emit('\n'.join(["        %s %s"%('return' if not n else '      ', i)
+                for n,i in enumerate(table.attr.get('dj_name').split('\n'))]))
+                
+        self.emit()
     def end_table(self, table):
+        
+        # DJ complains if attr is present in Meta class def.
+        # also, DJ templates can't access attributes starting with '_'
+        self.emit()
+        self.emit('%s.dml_attr = %s'%(self.upcase(table.name), repr(table.attr)))
+        
+        # write DML attributes on fields as well
+        for fld in table.field:
+            F = table.field[fld]
+            self.emit('dml_dj_set_attr(%s, "%s", %s)'%(
+                self.upcase(table.name),
+                F.name,
+                repr(F.attr)))
+        
         self.emit()
     def show_field(self, field):
 
