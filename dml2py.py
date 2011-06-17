@@ -43,6 +43,7 @@ class Table(object):
         self.c2f = {}  # connection number to field name
         self._is_many_to_many = None
         self.attr = {}
+        self.validators = []
     def __repr__(self):
         
         out = ['\nTABLE '+self.name]
@@ -77,6 +78,7 @@ class Field(object):
         self.editable = True
         self.m2m_link = False
         self.attr = {}
+        self.validators = []
     def __repr__(self):
         
         out = ['  FIELD '+self.name]
@@ -367,6 +369,7 @@ class DjangoOut(OutputCollector):
 
         OutputCollector.__init__(self, *args, **kwargs)
         self.db_schema = kwargs.get('db_schema', '')
+        self.validator_id = 0
     def _type_map(self, field):
 
         type_ = None
@@ -413,6 +416,7 @@ class DjangoOut(OutputCollector):
     def start(self, schema):
         self.emit("# AUTOMATICALLY GENERATED MODELS, edit models_base.py instead\n")
         self.emit("from models_base import *\n")
+        self.emit("from django.forms import ValidationError\n")
 
         self.emit('# admin registrations\n"""')
         for table in schema['_tables']:
@@ -427,8 +431,16 @@ class DjangoOut(OutputCollector):
             else:
                 raise Exception("Could not find field %s"%field)
         """)
+        self.emit("""def dml_dj_add_field_validator(table, field, validator):
+            for fld in table._meta.fields:
+                if fld.name == field:
+                    fld.validators.append(validator)
+                    break
+            else:
+                raise Exception("Could not find field %s"%field)
+        """)
     def start_table(self, table):
-
+        
         if not table.comment:
             comment = 'NO COMMENT SUPPLIED'
         else:
@@ -464,11 +476,18 @@ class DjangoOut(OutputCollector):
         self.emit()
     def end_table(self, table):
         
+        # must come before attribute writing as may update attributes
+        self.write_validators(table)
+
+        self.emit()
+        
         # DJ complains if attr is present in Meta class def.
         # also, DJ templates can't access attributes starting with '_'
         self.emit()
         self.emit('%s.dml_attr = %s'%(self.upcase(table.name), repr(table.attr)))
         
+        self.emit()
+
         # write DML attributes on fields as well
         for fld in table.field:
             F = table.field[fld]
@@ -493,7 +512,10 @@ class DjangoOut(OutputCollector):
             if field.unique:
                 kwargs.append('unique=True')
             if field.allow_null:
-                kwargs.append('blank=True')  # , null=True')
+                kwargs.append('blank=True')
+                if ('text' not in field.type.lower() and
+                    'char' not in field.type.lower()):
+                         kwargs.append('null=True')
             if not field.editable or field.attr.get('dj_editable') == 'false':
                 kwargs.append('editable=False')
 
@@ -509,7 +531,37 @@ class DjangoOut(OutputCollector):
          self.emit("# %s.%s -> %s.%s" % (from_table, from_field, to_table, to_field))
     def stop(self, schema):
         pass
+    def write_validators(self, table, field=None):
 
+        if field:
+            validators = field.validators
+        else:
+            validators = table.validators
+            
+        for validator in validators:
+
+            v_name = 'validate_%s' % table.name
+            if field:
+                v_name += '_%s' % field.name
+                
+            v_name += '_%s' % self.validator_id
+            self.validator_id += 1
+            
+            self.emit("def %s(X):" % v_name)
+            self.emit('\n'.join(["    "+i for i in validator['rule'].split('\n')]))
+            self.emit("    if not ok:")
+            self.emit("        raise ValidationError(%s)" % repr(validator['message']))
+            self.emit("")
+            
+            if field:
+                self.emit("dml_dj_add_field_validator(%s, %s, %s)" % (
+                    self.upcase(table.name), repr(field.name), v_name))
+            else:
+                table.attr.setdefault('dml_validators', []).append(v_name)
+                    
+        if not field:
+            for field_name in table.field:
+                self.write_validators(table, field=table.field[field_name])
 
 FIRST_CONNECT = 12
 
@@ -645,6 +697,13 @@ def read_dml(doc, schema):
         for i in table.xpath('attr'):
             T.attr[i.get('key')] = i.text
 
+        for i in table.xpath('validator'):
+            T.validators.append({
+                'rule': i.xpath('rule')[0].text,
+                'message': i.xpath('message')[0].text,
+            })
+
+
         #X schema['o2t'][table.get('id')] = T.name
         
         schema['_tables'].append(T.name)  # for ordering
@@ -657,6 +716,12 @@ def read_dml(doc, schema):
             F.attr = {}
             for i in field.xpath('attr'):
                 F.attr[i.get('key')] = i.text
+                
+            for i in field.xpath('validator'):
+                F.validators.append({
+                    'rule': i.xpath('rule')[0].text,
+                    'message': i.xpath('message')[0].text,
+                })
 
             for i in ['primary_key', 'allow_null', 'unique']:
                 setattr(F, i, any_to_bool(field.get(i)))

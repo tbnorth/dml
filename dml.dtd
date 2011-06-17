@@ -7,7 +7,7 @@
 <!ELEMENT date (#PCDATA)>
 <!ELEMENT table (name+,description?,attr*,field+)>
     <!ATTLIST table id ID #REQUIRED>
-<!ELEMENT field (name+,description?,type+,foreign_key*,attr*)>
+<!ELEMENT field (name+,description?,type+,foreign_key*,validator*,attr*)>
     <!ATTLIST field id ID #REQUIRED>
     <!ATTLIST field primary_key (true|false) #REQUIRED>
     <!ATTLIST field unique (true|false) #REQUIRED>
@@ -20,3 +20,6 @@
     <!ATTLIST foreign_key target CDATA #REQUIRED>
 <!ELEMENT attr (#PCDATA)>
     <!ATTLIST attr key CDATA #REQUIRED>
+<!ELEMENT validator (rule, message)>
+<!ELEMENT rule (#PCDATA)>
+<!ELEMENT message (#PCDATA)>
