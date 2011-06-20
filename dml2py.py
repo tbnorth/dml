@@ -400,7 +400,7 @@ class DjangoOut(OutputCollector):
                 if field.foreign_key_external:
                     target_ref = target_ref.strip('"')  # refer to class, not its name
                 return 'models.ForeignKey(%s, db_column="%s", %%s)' % (
-                    target_ref, target)
+                    target_ref, field.name)
 
         elif field.type in self.type_lu:
             ans = self.type_lu[field.type]
@@ -445,6 +445,7 @@ class DjangoOut(OutputCollector):
             comment = 'NO COMMENT SUPPLIED'
         else:
             comment = table.comment
+            table.attr['dj_description'] = comment
 
         wrapper = textwrap.TextWrapper(initial_indent='    """',
             subsequent_indent="    ")
@@ -500,6 +501,8 @@ class DjangoOut(OutputCollector):
     def show_field(self, field):
 
         plural = 's' if field.is_many_to_many() else ''
+        
+        field.attr['dj_description'] = field.comment
 
         fld = "    %s%s = %s" % (
             field.name,
@@ -547,7 +550,7 @@ class DjangoOut(OutputCollector):
             v_name += '_%s' % self.validator_id
             self.validator_id += 1
             
-            self.emit("def %s(X):" % v_name)
+            self.emit("def %s(X, pk=None):" % v_name)
             self.emit('\n'.join(["    "+i for i in validator['rule'].split('\n')]))
             self.emit("    if not ok:")
             self.emit("        raise ValidationError(%s)" % repr(validator['message']))
