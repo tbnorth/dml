@@ -54,14 +54,18 @@ class Table(object):
     def is_many_to_many(self):
 
         if self._is_many_to_many is None:
-            self._is_many_to_many = '!M2M' not in self.comment and (
+            self._is_many_to_many = (
+              '!M2M' not in self.comment and
+              not ('is_m2m' in self.attr and not any_to_bool(self.attr['is_m2m'])) and
+              (
                 ((2 <= len(self.fields) <= 3) and
                 all(self.field[f].type == 'ID' for f in self.fields))
                 or
                 'M2M' in self.comment 
                 or
                 'is_m2m' in self.attr and any_to_bool(self.attr['is_m2m'])
-                )
+              )
+            )
 
         return self._is_many_to_many
 class Field(object):
@@ -511,6 +515,7 @@ class DjangoOut(OutputCollector):
         )
 
         if '%s' in fld:  # don't mess with pk fields etc.
+
             kwargs = []
             if field.unique:
                 kwargs.append('unique=True')
@@ -521,6 +526,9 @@ class DjangoOut(OutputCollector):
                          kwargs.append('null=True')
             if not field.editable or field.attr.get('dj_editable') == 'false':
                 kwargs.append('editable=False')
+                
+            if field.attr.get('choices'):                   
+                kwargs.append('choices=(%s)'%field.attr.get('choices'))
 
             fld = fld % (', '.join(kwargs))
 

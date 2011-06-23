@@ -5,7 +5,7 @@
 <!ELEMENT log_entry (#PCDATA)>
     <!ATTLIST log_entry date CDATA #REQUIRED>
 <!ELEMENT date (#PCDATA)>
-<!ELEMENT table (name+,description?,attr*,field+)>
+<!ELEMENT table (name+,description?,validator*,attr*,field+)>
     <!ATTLIST table id ID #REQUIRED>
 <!ELEMENT field (name+,description?,type+,foreign_key*,validator*,attr*)>
     <!ATTLIST field id ID #REQUIRED>
