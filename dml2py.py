@@ -73,6 +73,7 @@ class Field(object):
     def __init__(self, table):
         self.table = table
         self.foreign_key = None
+        self.foreign_key_external = False
         self.referers = []  # fields for which this field is a foreign key
         self.primary_key = False
         self.unique = False
@@ -421,7 +422,7 @@ class DjangoOut(OutputCollector):
         self.emit("# AUTOMATICALLY GENERATED MODELS, edit models_base.py instead\n")
         self.emit("from models_base import *\n")
         self.emit("from django.forms import ValidationError\n")
-
+        self.emit("from django.db.models import Min,Max,Avg,Count\n")
         self.emit('# admin registrations\n"""')
         for table in schema['_tables']:
             self.emit("admin.site.register(%s)" % table.capitalize())
@@ -433,7 +434,7 @@ class DjangoOut(OutputCollector):
                     fld.dml_attr = attr
                     break
             else:
-                raise Exception("Could not find field %s"%field)
+                raise Exception("Could not find field %s in %s"%(field,table))
         """)
         self.emit("""def dml_dj_add_field_validator(table, field, validator):
             for fld in table._meta.fields:
