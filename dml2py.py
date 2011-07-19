@@ -84,6 +84,7 @@ class Field(object):
         self.m2m_link = False
         self.attr = {}
         self.validators = []
+        self.type = None
     def __repr__(self):
         
         out = ['  FIELD '+self.name]
@@ -381,11 +382,28 @@ class DjangoOut(OutputCollector):
 
         if field.primary_key:
             return 'models.AutoField(primary_key=True)'
-        elif field.is_many_to_many():
+        elif field.is_many_to_many() or 'dj_m2m_target' in field.attr:
+            
+            if 'dj_m2m_target' in field.attr:  # simple case where django handles intermediate
+                return 'models.ManyToManyField("%s")' % (self.upcase(field.attr['dj_m2m_target']))
+            
             # this is created during parsing, shouldn't appear in user visible graph
             # note link table is probably not defined yet, so use string to refer to it
+            
+            # need to find name of target table, often but not necesarily the
+            # same as this field's name
+            d = field.foreign_key.table.field
+            # print field.table.name, field.name
+            # for k in d:
+            #     print '_____', k, d[k].name
+            #     if d[k].foreign_key:
+            #         print '_____>', d[k].foreign_key.name, d[k].foreign_key.table.name
+            for k in d:
+                if k == field.name and d[k].foreign_key:
+                    target = d[k].foreign_key.table.name
+            
             return 'models.ManyToManyField("%s", through="%s")' % (
-                self.upcase(field.name),
+                self.upcase(target),
                 self.upcase(field.foreign_key.table.name),
                 )
         elif field.type == 'ID':
@@ -412,6 +430,8 @@ class DjangoOut(OutputCollector):
             if field.type in ('bool', 'boolean') and field.allow_null:
                 # FIXME conflation of null and blank sensu Django here?
                 ans = ans.replace("BooleanField", "NullBooleanField")
+            if 'dj_form' in field.attr and 'textarea' in field.attr['dj_form']:
+                ans = ans.replace("CharField", "TextField");
             return ans
         else:
             return field.type
@@ -434,7 +454,8 @@ class DjangoOut(OutputCollector):
                     fld.dml_attr = attr
                     break
             else:
-                raise Exception("Could not find field %s in %s"%(field,table))
+                # print "Could not find field %s in %s"%(field,table)
+                pass
         """)
         self.emit("""def dml_dj_add_field_validator(table, field, validator):
             for fld in table._meta.fields:
@@ -497,6 +518,8 @@ class DjangoOut(OutputCollector):
         # write DML attributes on fields as well
         for fld in table.field:
             F = table.field[fld]
+            if F.is_many_to_many():
+                continue  # virtual field
             self.emit('dml_dj_set_attr(%s, "%s", %s)'%(
                 self.upcase(table.name),
                 F.name,
@@ -739,10 +762,10 @@ def read_dml(doc, schema):
                 setattr(F, i, any_to_bool(field.get(i)))
 
             # attribs always present even if empty, so
-            F.name = field.xpath('name')[0].text
-            F.type = field.xpath('type')[0].text
+            F.name = field.xpath('name')[0].text.strip()
+            F.type = field.xpath('type')[0].text.strip()
                 
-            F.comment = '\n'.join([i.text or '' for i in field.xpath('./description')])
+            F.comment = ('\n'.join([i.text or '' for i in field.xpath('./description')])).strip()
              
             T.fields.append(F.name)  # for ordering
             T.field[F.name] = F
@@ -886,13 +909,28 @@ def read_schema(doc):
                     if t == f or T.field[f].type != 'ID' or T.field[t].type != 'ID':
                         continue  # link carries additional info.
     
-                    schema[f].fields.append(t)
-                    F = Field(schema[f])
+                    f_table_name = T.field[f].foreign_key.table.name
+                    t_table_name = T.field[t].foreign_key.table.name
+                    
+                    schema[f_table_name].fields.append(t)
+                    F = Field(schema[f_table_name])
                     F.m2m_link = True
                     F.name = t
-                    schema[f].field[t] = F
+                    schema[f_table_name].field[t] = F
                     F.type = 'ID'
                     F.foreign_key = T.field[f]
+                    
+        if 'dj_m2m_target' in T.attr:
+            # let DJango handle simple cases without specifying intermediate table
+            # can distinguish because foreign_key is not set
+            t_field_name, t_table_name = T.attr.get('dj_m2m_target').strip().split()
+            F = Field(schema[t_table_name])
+            F.m2m_link = True
+            F.attr['dj_m2m_target'] = T.name
+            F.name = t_field_name
+            assert F.name not in schema[t_table_name].field
+            schema[t_table_name].field[F.name] = F
+            schema[t_table_name].fields.append(F.name)
                     
     return schema
 
