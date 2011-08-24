@@ -385,7 +385,10 @@ class DjangoOut(OutputCollector):
         elif field.is_many_to_many() or 'dj_m2m_target' in field.attr:
             
             if 'dj_m2m_target' in field.attr:  # simple case where django handles intermediate
-                return 'models.ManyToManyField("%s")' % (self.upcase(field.attr['dj_m2m_target']))
+                if field.allow_null:
+                    return 'models.ManyToManyField("%s", blank=True)' % (self.upcase(field.attr['dj_m2m_target']))
+                else:
+                    return 'models.ManyToManyField("%s")' % (self.upcase(field.attr['dj_m2m_target']))
             
             # this is created during parsing, shouldn't appear in user visible graph
             # note link table is probably not defined yet, so use string to refer to it
@@ -422,8 +425,14 @@ class DjangoOut(OutputCollector):
                 target_ref = '"%s"'%self.upcase(target)
                 if field.foreign_key_external:
                     target_ref = target_ref.strip('"')  # refer to class, not its name
-                return 'models.ForeignKey(%s, db_column="%s", %%s)' % (
-                    target_ref, field.name)
+                rel_name = 'related_name="%s", '%field.attr['dj_related_name'] if 'dj_related_name' in field.attr else ''
+                return 'models.ForeignKey(%s, db_column="%s", %s%%s)' % (
+                    target_ref, field.name, rel_name)
+                              
+        elif 'dj_upload' in field.attr:
+            
+            return ('models.FileField(max_length=1024, upload_to=upload_to_%s_%s)' % 
+                (field.table.name, field.name))
 
         elif field.type in self.type_lu:
             ans = self.type_lu[field.type]
@@ -447,6 +456,11 @@ class DjangoOut(OutputCollector):
         for table in schema['_tables']:
             self.emit("admin.site.register(%s)" % table.capitalize())
         self.emit('"""\n')
+        
+        self.emit("import re")
+        self.emit("""_fp0=re.compile(r'[[\]\\r\\n\\t;: /\\\\"\\'!?*&^%@#$|{}()~`<>=]+')""")
+        self.emit("""def fix_path(s):
+            return _fp0.sub('_', str(s))""")
 
         self.emit("""def dml_dj_set_attr(table, field, attr):
             for fld in table._meta.fields:
@@ -465,7 +479,14 @@ class DjangoOut(OutputCollector):
             else:
                 raise Exception("Could not find field %s"%field)
         """)
+        self.emit("""def dml_dj_uploader(path):
+            def f(self, orig, path=path):
+                print  eval(path)
+                return eval(path)
+        """)
     def start_table(self, table):
+        
+        self.write_uploaders(table)
         
         if not table.comment:
             comment = 'NO COMMENT SUPPLIED'
@@ -478,6 +499,11 @@ class DjangoOut(OutputCollector):
 
         self.emit("class %s (models.Model):  # %s" % (self.upcase(table.name), "AUTOMATICALLY GENERATED"))
         self.emit('%s\n    """' % wrapper.fill(comment))
+        
+        if 'dj_extra_pre' in table.attr:
+            self.emit()
+            self.emit('\n'.join(["    "+i for i in table.attr['dj_extra_pre'].split('\n')]))
+            self.emit()
 
         # start Meta class
         self.emit()
@@ -499,7 +525,12 @@ class DjangoOut(OutputCollector):
             self.emit('    def __unicode__(self):')
             self.emit('\n'.join(["        %s %s"%('return' if not n else '      ', i)
                 for n,i in enumerate(table.attr.get('dj_name').split('\n'))]))
-                
+
+        if 'dj_extra_post' in table.attr:
+            self.emit()
+            self.emit('\n'.join(["    "+i for i in table.attr['dj_extra_post'].split('\n')]))
+
+
         self.emit()
     def end_table(self, table):
         
@@ -548,7 +579,7 @@ class DjangoOut(OutputCollector):
                 if ('text' not in field.type.lower() and
                     'char' not in field.type.lower()):
                          kwargs.append('null=True')
-            if not field.editable or field.attr.get('dj_editable') == 'false':
+            if not field.editable or not any_to_bool(field.attr.get('dj_editable', True)):
                 kwargs.append('editable=False')
                 
             if field.attr.get('choices'):                   
@@ -565,7 +596,13 @@ class DjangoOut(OutputCollector):
     def show_link(self, from_table, from_field, to_table, to_field):
          self.emit("# %s.%s -> %s.%s" % (from_table, from_field, to_table, to_field))
     def stop(self, schema):
-        pass
+        self.emit("")
+        self.emit("# load customizations")
+        self.emit("try:")
+        self.emit("    import models_post")
+        self.emit("except ImportError:")
+        self.emit("    pass")
+        self.emit("")
     def write_validators(self, table, field=None):
 
         if field:
@@ -582,7 +619,7 @@ class DjangoOut(OutputCollector):
             v_name += '_%s' % self.validator_id
             self.validator_id += 1
             
-            self.emit("def %s(X, pk=None):" % v_name)
+            self.emit("def %s(X, pk=None, inlineX={}):" % v_name)
             self.emit('\n'.join(["    "+i for i in validator['rule'].split('\n')]))
             self.emit("    if not ok:")
             self.emit("        raise ValidationError(%s)" % repr(validator['message']))
@@ -598,6 +635,21 @@ class DjangoOut(OutputCollector):
             for field_name in table.field:
                 self.write_validators(table, field=table.field[field_name])
 
+    def write_uploaders(self, table):
+            
+        for fieldname in table.fields:
+            
+            field = table.field[fieldname]
+            
+            if 'dj_upload' not in field.attr:
+                continue
+
+            v_name = 'upload_to_%s' % table.name
+            v_name += '_%s' % field.name
+            
+            self.emit("def %s(instance, filename, mode='make_path'):" % v_name)
+            self.emit('\n'.join(["    "+i for i in field.attr['dj_upload'].split('\n')]))
+            self.emit("")
 FIRST_CONNECT = 12
 
 NS = { 'dia': "http://www.lysator.liu.se/~alla/dia/" }
@@ -923,11 +975,12 @@ def read_schema(doc):
         if 'dj_m2m_target' in T.attr:
             # let DJango handle simple cases without specifying intermediate table
             # can distinguish because foreign_key is not set
-            t_field_name, t_table_name = T.attr.get('dj_m2m_target').strip().split()
+            t_field_name, t_table_name, allow_null = T.attr.get('dj_m2m_target').strip().split()
             F = Field(schema[t_table_name])
             F.m2m_link = True
             F.attr['dj_m2m_target'] = T.name
             F.name = t_field_name
+            F.allow_null = any_to_bool(allow_null)
             assert F.name not in schema[t_table_name].field
             schema[t_table_name].field[F.name] = F
             schema[t_table_name].fields.append(F.name)
