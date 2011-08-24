@@ -584,6 +584,9 @@ class DjangoOut(OutputCollector):
                 
             if field.attr.get('choices'):                   
                 kwargs.append('choices=(%s)'%field.attr.get('choices'))
+                
+            if field.attr.get('default'):                   
+                kwargs.append('default=%s'%field.attr.get('default'))
 
             fld = fld % (', '.join(kwargs))
 
