@@ -360,8 +360,11 @@ class DjangoOut(OutputCollector):
 
     type_lu = {
         'float': 'models.FloatField(%s)',
+        'real': 'models.FloatField(%s)',
         'text': 'models.CharField(max_length=4096,%s)',
+        'char': 'models.CharField(max_length=4096,%s)',
         'int': 'models.IntegerField(%s)',
+        'bigint': 'models.IntegerField(%s)',
         'bool': 'models.BooleanField(%s)',
         'boolean': 'models.BooleanField(%s)',
         'geometry': 'models.GeometryField(%s)',
@@ -369,6 +372,7 @@ class DjangoOut(OutputCollector):
         'date': 'models.DateField(%s)',
         'time': 'models.TimeField(%s)',
         'datetime': 'models.DateTimeField(%s)',
+        'timestamp': 'models.DateTimeField(%s)',
     }
 
     def __init__(self, *args, **kwargs):
@@ -434,8 +438,8 @@ class DjangoOut(OutputCollector):
             return ('models.FileField(max_length=1024, upload_to=upload_to_%s_%s)' % 
                 (field.table.name, field.name))
 
-        elif field.type in self.type_lu:
-            ans = self.type_lu[field.type]
+        elif field.type.split('(')[0].strip() in self.type_lu:
+            ans = self.type_lu[field.type.split('(')[0].strip()]
             if field.type in ('bool', 'boolean') and field.allow_null:
                 # FIXME conflation of null and blank sensu Django here?
                 ans = ans.replace("BooleanField", "NullBooleanField")
@@ -963,7 +967,7 @@ def read_schema(doc):
     
                     if t == f or T.field[f].type != 'ID' or T.field[t].type != 'ID':
                         continue  # link carries additional info.
-    
+
                     f_table_name = T.field[f].foreign_key.table.name
                     t_table_name = T.field[t].foreign_key.table.name
                     
