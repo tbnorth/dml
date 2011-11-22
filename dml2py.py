@@ -297,14 +297,13 @@ class SQLOut(OutputCollector):
 
         self.first_field = True
 
-        self.db_schema = db_schema
-
         self.foreign_key_names = []  # avoid duplicating foreign key names
     def _type_map(self, field):
+        # qgis does not like bigserial / bigint
         if field.primary_key:
-            return 'bigserial primary key'
+            return 'serial primary key'
         elif field.type == 'ID':
-            return 'bigint'
+            return 'int'
         else:
             return field.type
 
@@ -334,9 +333,9 @@ class SQLOut(OutputCollector):
         self.first_field = False
         self.emit('  ', field.name, self._type_map(field), None)
         if field.unique:
-            self.emit('unique', None)
+            self.emit(' unique', None)
         if not field.allow_null:
-            self.emit('not null', None)
+            self.emit(' not null', None)
 
     def show_link(self, from_table, from_field, to_table, to_field):
          # print "-- %s.%s -> %s.%s" % (from_table, from_field, to_table, to_field)
@@ -783,7 +782,7 @@ def read_dml(doc, schema):
     
         T = Table()
         
-        T.name = table.xpath('name')[0].text
+        T.name = table.xpath('name')[0].text.strip()
             
         T.comment = '\n'.join([i.text or '' for i in table.xpath('./description')])
         
@@ -838,13 +837,13 @@ def read_dml(doc, schema):
                 
                 target = doc.xpath("//field[@id='%s']"%fk.get('target'))
 
-                from_table = schema[table.xpath('name')[0].text]
-                from_field = from_table.field[field.xpath('name')[0].text]
+                from_table = schema[table.xpath('name')[0].text.strip()]
+                from_field = from_table.field[field.xpath('name')[0].text.strip()]
                 
                 if target:                    
                     target = target[0]
-                    to_table = schema[target.getparent().xpath('name')[0].text]
-                    to_field = to_table.field[target.xpath('name')[0].text]
+                    to_table = schema[target.getparent().xpath('name')[0].text.strip()]
+                    to_field = to_table.field[target.xpath('name')[0].text.strip()]
                     from_field.foreign_key = to_field
                     to_field.referers.append(from_field)
                     from_field.foreign_key_external = False
@@ -967,6 +966,8 @@ def read_schema(doc):
     
                     if t == f or T.field[f].type != 'ID' or T.field[t].type != 'ID':
                         continue  # link carries additional info.
+                    
+                    sys.stderr.write("%s.%s->%s\n" % (table, f, t))
 
                     f_table_name = T.field[f].foreign_key.table.name
                     t_table_name = T.field[t].foreign_key.table.name
