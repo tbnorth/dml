@@ -968,17 +968,24 @@ def read_schema(doc):
                         continue  # link carries additional info.
                     
                     sys.stderr.write("%s.%s->%s\n" % (table, f, t))
-
-                    f_table_name = T.field[f].foreign_key.table.name
-                    t_table_name = T.field[t].foreign_key.table.name
                     
-                    schema[f_table_name].fields.append(t)
-                    F = Field(schema[f_table_name])
-                    F.m2m_link = True
-                    F.name = t
-                    schema[f_table_name].field[t] = F
-                    F.type = 'ID'
-                    F.foreign_key = T.field[f]
+                    try:
+                        f_table_name = T.field[f].foreign_key.table.name
+                        t_table_name = T.field[t].foreign_key.table.name
+                        
+                        schema[f_table_name].fields.append(t)
+                        F = Field(schema[f_table_name])
+                        F.m2m_link = True
+                        F.name = t
+                        schema[f_table_name].field[t] = F
+                        F.type = 'ID'
+                        F.foreign_key = T.field[f]
+                    except (KeyError, AttributeError):
+                        sys.stderr.write('\n')
+                        sys.stderr.write("Error making many to many fields\n")
+                        sys.stderr.write("Missing <attr key='is_m2m' value='false'/> maybe?\n")
+                        sys.stderr.write('\n')
+                        raise
                     
         if 'dj_m2m_target' in T.attr:
             # let DJango handle simple cases without specifying intermediate table
