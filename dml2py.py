@@ -114,6 +114,8 @@ class OutputCollector(object):
 
     def __init__(self, *args, **kwargs):
         
+        self.opt = kwargs['opt']
+        self.arg = kwargs['arg']
         self._output = []
         
     def emit(self, *args):
@@ -372,6 +374,7 @@ class DjangoOut(OutputCollector):
         'time': 'models.TimeField(%s)',
         'datetime': 'models.DateTimeField(%s)',
         'timestamp': 'models.DateTimeField(%s)',
+        'csint': 'models.CommaSeparatedIntegerField(max_length=4096,%s)',
     }
 
     def __init__(self, *args, **kwargs):
@@ -420,8 +423,8 @@ class DjangoOut(OutputCollector):
                 target = field.foreign_key.table.name
         
             if not field.foreign_key_external and target == field.table.name:
-                return 'models.ForeignKey(%s, related_name="%s_set", db_column="%s", %%s)' % (
-                    '"self"', field.name, field.name)
+                return 'models.ForeignKey("%s", related_name="%s_set", db_column="%s", %%s)' % (
+                    'self', field.name, field.name)
             else:
                 # use "ModelName" rather than ModelName for reference to avoid
                 # declaration order issues
@@ -566,10 +569,20 @@ class DjangoOut(OutputCollector):
         
         field.attr['dj_description'] = field.comment
 
+        mapped_type = self._type_map(field)
+        
+        if 'models.' in mapped_type:  # extract field type for CSS class
+            i = mapped_type.split('models.', 1)[1]
+            i = i.split('(', 1)[0]
+            if 'dj_css_class' in field.attr:
+                field.attr['dj_css_class'] += ' '+i
+            else:
+                field.attr['dj_css_class'] = i
+
         fld = "    %s%s = %s" % (
             field.name,
             plural,
-            self._type_map(field),
+            mapped_type,
         )
 
         if '%s' in fld:  # don't mess with pk fields etc.
@@ -656,6 +669,39 @@ class DjangoOut(OutputCollector):
             self.emit("def %s(instance, filename, mode='make_path'):" % v_name)
             self.emit('\n'.join(["    "+i for i in field.attr['dj_upload'].split('\n')]))
             self.emit("")
+class ImportOut(OutputCollector):
+    """
+    just print commands for fixing Postrgesql PK sequences, and
+    commands to import from another schema, if --from-schema is specified
+    """
+
+    def __init__(self, *args, **kwargs):
+
+        OutputCollector.__init__(self, *args, **kwargs)
+        self.db_schema = kwargs.get('db_schema', '')
+    def start(self, schema):
+        self.emit("-- AUTOMATICALLY GENERATED sequence update / import commands")
+    def start_table(self, table):
+
+        pass
+    def end_table(self, table):
+        
+        pass
+    def show_field(self, field):
+
+        if field.primary_key:
+            f = field.name
+            t = field.table.name
+            self.emit()
+            if self.opt.from_schema:
+                self.emit("-- insert into %s select * from %s.%s;" % (
+                t, self.opt.from_schema, t))
+            self.emit("select setval('%s_%s_seq', coalesce((select max(%s) from %s), 0));" % (
+                t, f, f, t))
+    def show_link(self, from_table, from_field, to_table, to_field):
+         pass
+    def stop(self, schema):
+        self.emit("")
 FIRST_CONNECT = 12
 
 NS = { 'dia': "http://www.lysator.liu.se/~alla/dia/" }
@@ -1006,6 +1052,8 @@ def main():
     parser = optparse.OptionParser()
     parser.add_option("--mode", default="django",
         help="Output mode: django (default), SQL, simple")
+    parser.add_option("--from-schema",
+        help="source schema for mode 'import'")
     
     opt, arg = parser.parse_args()
     mode = {
@@ -1014,6 +1062,7 @@ def main():
         'simple': SimpleOut,
         'rst': RstOut,
         'dml': DMLOut,
+        'import': ImportOut,
     }
     
     
@@ -1024,7 +1073,7 @@ def main():
     import pprint
     sys.stderr.write(pprint.pformat(schema)+'\n')
     
-    out = mode[opt.mode](schema)
+    out = mode[opt.mode](schema, opt=opt, arg=arg)
     out.start(schema)
     
     # main output pass
