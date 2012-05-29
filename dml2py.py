@@ -80,6 +80,7 @@ class Field(object):
         self.allow_null = False
         self.name = '*UNNAMED FIELD*'
         self.comment = ''
+        self.units = ''
         self.editable = True
         self.m2m_link = False
         self.attr = {}
@@ -498,7 +499,8 @@ class DjangoOut(OutputCollector):
             comment = 'NO COMMENT SUPPLIED'
         else:
             comment = table.comment
-            table.attr['dj_description'] = comment
+            
+        table.attr['dj_description'] = comment
 
         wrapper = textwrap.TextWrapper(initial_indent='    """',
             subsequent_indent="    ")
@@ -523,7 +525,6 @@ class DjangoOut(OutputCollector):
             self.emit('        ordering = %s' % repr(table.attr.get('dj_order').split()))
         self.emit()
         
-        
         # end of Meta class
 
         # __unicode__
@@ -532,9 +533,14 @@ class DjangoOut(OutputCollector):
             self.emit('\n'.join(["        %s %s"%('return' if not n else '      ', i)
                 for n,i in enumerate(table.attr.get('dj_name').split('\n'))]))
 
+        if any([i.type == 'geometry' for i in table.field.values()]):
+            self.emit()
+            self.emit("    objects = models.GeoManager()\n")
+            
         if 'dj_extra_post' in table.attr:
             self.emit()
             self.emit('\n'.join(["    "+i for i in table.attr['dj_extra_post'].split('\n')]))
+            
 
 
         self.emit()
@@ -568,6 +574,7 @@ class DjangoOut(OutputCollector):
         plural = 's' if field.is_many_to_many() else ''
         
         field.attr['dj_description'] = field.comment
+        field.attr['units'] = field.units
 
         mapped_type = self._type_map(field)
         
@@ -694,8 +701,12 @@ class ImportOut(OutputCollector):
             t = field.table.name
             self.emit()
             if self.opt.from_schema:
-                self.emit("-- insert into %s select * from %s.%s;" % (
-                t, self.opt.from_schema, t))
+                self.emit("-- insert into %s (%s) select %s from %s.%s;" % (
+                t, 
+                ', '.join(field.table.fields),
+                ', '.join(field.table.fields),
+                self.opt.from_schema,
+                t))
             self.emit("select setval('%s_%s_seq', coalesce((select max(%s) from %s), 0));" % (
                 t, f, f, t))
     def show_link(self, from_table, from_field, to_table, to_field):
@@ -832,7 +843,7 @@ def read_dml(doc, schema):
             
         T.comment = '\n'.join([i.text or '' for i in table.xpath('./description')])
         
-        T.attr = {}
+        T.attr = {'schema_name': schema['_name']}
         for i in table.xpath('attr'):
             T.attr[i.get('key')] = i.text
 
@@ -870,6 +881,7 @@ def read_dml(doc, schema):
             F.type = field.xpath('type')[0].text.strip()
                 
             F.comment = ('\n'.join([i.text or '' for i in field.xpath('./description')])).strip()
+            F.units = ('\n'.join([i.text or '' for i in field.xpath('./units')])).strip()
              
             T.fields.append(F.name)  # for ordering
             T.field[F.name] = F

@@ -7,7 +7,7 @@
 <!ELEMENT date (#PCDATA)>
 <!ELEMENT table (name+,description?,validator*,attr*,field+)>
     <!ATTLIST table id ID #REQUIRED>
-<!ELEMENT field (name+,description?,type+,foreign_key*,validator*,attr*)>
+<!ELEMENT field (name+,description?,units?,type+,foreign_key*,validator*,attr*)>
     <!ATTLIST field id ID #REQUIRED>
     <!ATTLIST field primary_key (true|false) #REQUIRED>
     <!ATTLIST field unique (true|false) #REQUIRED>
@@ -16,6 +16,7 @@
     <!ATTLIST name context CDATA #IMPLIED>
 <!ELEMENT type (#PCDATA)>
     <!ATTLIST type context CDATA #IMPLIED>
+<!ELEMENT units (#PCDATA)>
 <!ELEMENT foreign_key EMPTY>
     <!ATTLIST foreign_key target CDATA #REQUIRED>
 <!ELEMENT attr (#PCDATA)>
