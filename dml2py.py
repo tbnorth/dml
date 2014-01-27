@@ -383,6 +383,7 @@ class DjangoOut(OutputCollector):
         OutputCollector.__init__(self, *args, **kwargs)
         self.db_schema = kwargs.get('db_schema', '')
         self.validator_id = 0
+        self.pre_save_connected = False
     def _type_map(self, field):
 
         type_ = None
@@ -431,7 +432,11 @@ class DjangoOut(OutputCollector):
                 # declaration order issues
                 target_ref = '"%s"'%self.upcase(target)
                 if field.foreign_key_external:
-                    target_ref = target_ref.strip('"')  # refer to class, not its name
+                    if '.' not in target_ref:
+                        target_ref = target_ref.strip('"')  # refer to class, not its name
+                    else:
+                        # truly foreign, from a different app, don't upcase
+                        target_ref = '"%s"'%target
                 rel_name = 'related_name="%s", '%field.attr['dj_related_name'] if 'dj_related_name' in field.attr else ''
                 return 'models.ForeignKey(%s, db_column="%s", %s%%s)' % (
                     target_ref, field.name, rel_name)
@@ -490,6 +495,17 @@ class DjangoOut(OutputCollector):
             def f(self, orig, path=path):
                 print  eval(path)
                 return eval(path)
+        """)
+        
+        # check globals() in case multiple dml2py outputs are concatenated
+        self.emit("""if 'md5_calc_targets' not in globals():
+            md5_calc_targets = []
+            def md5_calc(sender, instance, *args, **kwargs):
+                if sender in md5_calc_targets:
+                    DFile = instance.path
+                    DFile.seek(0)
+                    instance.md5 = md5.new(DFile.read()).hexdigest()
+            pre_save.connect(md5_calc)
         """)
     def start_table(self, table):
         
@@ -567,6 +583,13 @@ class DjangoOut(OutputCollector):
                 self.upcase(table.name),
                 F.name,
                 repr(F.attr)))
+            if 'dj_upload' in F.attr and 'md5' in table.field:
+                if not self.pre_save_connected:
+                    # this is now done with run time globals check in self.start()
+                    # self.emit('pre_save.connect(md5_calc)')
+                    self.pre_save_connected = True
+                self.emit('md5_calc_targets.append(%s)'%self.upcase(table.name))
+                    
         
         self.emit()
     def show_field(self, field):
@@ -611,6 +634,9 @@ class DjangoOut(OutputCollector):
             if field.attr.get('default'):                   
                 kwargs.append('default=%s'%field.attr.get('default'))
 
+            if field.comment:                   
+                kwargs.append('help_text=%s'%repr(field.comment))
+
             fld = fld % (', '.join(kwargs))
 
         self.emit(fld)
@@ -645,10 +671,14 @@ class DjangoOut(OutputCollector):
             v_name += '_%s' % self.validator_id
             self.validator_id += 1
             
-            self.emit("def %s(X, pk=None, inlineX={}):" % v_name)
+            # include **kwargs to make more robust to version changes
+            self.emit("def %s(X, pk=None, inlineX={}, **kwargs):" % v_name)
+            self.emit('\n    details=""')
             self.emit('\n'.join(["    "+i for i in validator['rule'].split('\n')]))
             self.emit("    if not ok:")
-            self.emit("        raise ValidationError(%s)" % repr(validator['message']))
+            self.emit("        raise ValidationError(%s)" % (
+                repr(validator['message'])+'+"\\n"+details'
+            ))
             self.emit("")
             
             if field:
@@ -703,8 +733,8 @@ class ImportOut(OutputCollector):
             if self.opt.from_schema:
                 self.emit("-- insert into %s (%s) select %s from %s.%s;" % (
                 t, 
-                ', '.join(field.table.fields),
-                ', '.join(field.table.fields),
+                ', '.join(['"%s"'%i for i in field.table.fields]),
+                ', '.join(['"%s"'%i for i in field.table.fields]),
                 self.opt.from_schema,
                 t))
             self.emit("select setval('%s_%s_seq', coalesce((select max(%s) from %s), 0));" % (
