@@ -412,7 +412,9 @@ class DjangoOut(OutputCollector):
             for k in d:
                 if k == field.name and d[k].foreign_key:
                     target = d[k].foreign_key.table.name
-            
+            else:
+                raise Exception("Unknown Target '%s'\n\nDo you "
+                    "need `attr is_m2m False`?" % k)
             return 'models.ManyToManyField("%s", through="%s")' % (
                 self.upcase(target),
                 self.upcase(field.foreign_key.table.name),
