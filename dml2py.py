@@ -384,6 +384,7 @@ class DjangoOut(OutputCollector):
         self.db_schema = kwargs.get('db_schema', '')
         self.validator_id = 0
         self.pre_save_connected = False
+        self.tables = []
     def _type_map(self, field):
 
         type_ = None
@@ -524,6 +525,8 @@ class DjangoOut(OutputCollector):
             subsequent_indent="    ")
 
         self.emit("class %s (models.Model):  # %s" % (self.upcase(table.name), "AUTOMATICALLY GENERATED"))
+        self.tables.append(self.upcase(table.name))
+        
         self.emit('%s\n    """' % wrapper.fill(comment))
         
         if 'dj_extra_pre' in table.attr:
@@ -650,6 +653,7 @@ class DjangoOut(OutputCollector):
     def show_link(self, from_table, from_field, to_table, to_field):
          self.emit("# %s.%s -> %s.%s" % (from_table, from_field, to_table, to_field))
     def stop(self, schema):
+        self.emit("DML_CLASSES = [%s]" % ','.join(self.tables))
         self.emit("")
         self.emit("# load customizations")
         self.emit("try:")
