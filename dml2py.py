@@ -464,6 +464,7 @@ class DjangoOut(OutputCollector):
         return s[0].upper() + s[1:]
     def start(self, schema):
         self.emit("# AUTOMATICALLY GENERATED MODELS, edit models_base.py instead\n")
+        self.emit("# Generated: %s\n" % time.asctime())
         self.emit("from models_base import *\n")
         self.emit("from django.forms import ValidationError\n")
         self.emit("from django.db.models import Min,Max,Avg,Count\n")
@@ -877,7 +878,10 @@ def read_dml(doc, schema):
         
         T.name = table.xpath('name')[0].text.strip()
             
-        T.comment = '\n'.join([i.text or '' for i in table.xpath('./description')])
+        T.comment = '\n'.join([
+            i.text or '' 
+            for i in table.xpath('./description')[:1]
+        ])
         
         T.attr = {'schema_name': schema['_name']}
         for i in table.xpath('attr'):
@@ -916,7 +920,10 @@ def read_dml(doc, schema):
             F.name = field.xpath('name')[0].text.strip()
             F.type = field.xpath('type')[0].text.strip()
                 
-            F.comment = ('\n'.join([i.text or '' for i in field.xpath('./description')])).strip()
+            F.comment = ('\n'.join([
+                i.text or '' 
+                for i in field.xpath('./description')[:1]
+            ])).strip()
             F.units = ('\n'.join([i.text or '' for i in field.xpath('./units')])).strip()
              
             T.fields.append(F.name)  # for ordering

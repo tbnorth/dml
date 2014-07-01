@@ -1,13 +1,13 @@
-<!ELEMENT dml (name,description?,attr*,log?,table+)>
+<!ELEMENT dml (name,description*,attr*,log?,table+)>
 <!ELEMENT description (#PCDATA)>
     <!ATTLIST description context CDATA #IMPLIED>
 <!ELEMENT log (log_entry+)>
 <!ELEMENT log_entry (#PCDATA)>
     <!ATTLIST log_entry date CDATA #REQUIRED>
 <!ELEMENT date (#PCDATA)>
-<!ELEMENT table (name+,description?,validator*,attr*,field+)>
+<!ELEMENT table (name+,description*,validator*,attr*,field+)>
     <!ATTLIST table id ID #REQUIRED>
-<!ELEMENT field (name+,description?,units?,type+,foreign_key*,validator*,attr*)>
+<!ELEMENT field (name+,description*,units?,type+,foreign_key*,validator*,attr*)>
     <!ATTLIST field id ID #REQUIRED>
     <!ATTLIST field primary_key (true|false) #REQUIRED>
     <!ATTLIST field unique (true|false) #REQUIRED>
