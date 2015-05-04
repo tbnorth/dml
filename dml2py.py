@@ -45,7 +45,7 @@ class Table(object):
         self.attr = {}
         self.validators = []
     def __repr__(self):
-        
+
         out = ['\nTABLE '+self.name]
         # FIXME attributes, description
         for i in self.fields:
@@ -56,12 +56,13 @@ class Table(object):
         if self._is_many_to_many is None:
             self._is_many_to_many = (
               '!M2M' not in self.comment and
-              not ('is_m2m' in self.attr and not any_to_bool(self.attr['is_m2m'])) and
+              not ('is_m2m' in self.attr and
+              not any_to_bool(self.attr['is_m2m'])) and
               (
                 ((2 <= len(self.fields) <= 3) and
                 all(self.field[f].type == 'ID' for f in self.fields))
                 or
-                'M2M' in self.comment 
+                'M2M' in self.comment
                 or
                 'is_m2m' in self.attr and any_to_bool(self.attr['is_m2m'])
               )
@@ -87,13 +88,13 @@ class Field(object):
         self.validators = []
         self.type = None
     def __repr__(self):
-        
+
         out = ['  FIELD '+self.name]
         if self.m2m_link:
             out = ['  FIELD -> '+self.name]
         # FIXME attributes, description
         if self.foreign_key and not self.foreign_key_external:
-            out.append('    -> %s.%s'%(self.foreign_key.table.name, 
+            out.append('    -> %s.%s'%(self.foreign_key.table.name,
                                        self.foreign_key.name))
         for i in self.referers:
             out.append('    <- %s.%s'%(i.table.name, i.name))
@@ -108,11 +109,11 @@ class Field(object):
             self.foreign_key.table.fields.index(self.name) < 3
         )
 
-        # sys.stderr.write(repr((ans, self.table.name, self.name, self.table.fields)) + '\n')
+        # sys.stderr.write(repr((ans, self.table.name, self.name,
+        #     self.table.fields)) + '\n')
 
         return ans
 class OutputCollector(object):
-
     def __init__(self, *args, **kwargs):
         
         self.opt = kwargs['opt']
@@ -120,14 +121,13 @@ class OutputCollector(object):
         self._output = []
         
     def emit(self, *args):
-        
+
         if args and args[-1] is None:
             self._output.append(' '.join(args[:-1]))
         else:
             self._output.append(' '.join(args)+'\n')
-        
     def result(self):
-        
+
         return ''.join(self._output)
 class RstOut(OutputCollector):
     def start(self, schema):
@@ -148,13 +148,14 @@ class RstOut(OutputCollector):
     def end_table(self, table):
         self.emit()
     def show_field(self, field):
-        
+
         ans = ['| ']
         if field.primary_key:
             ans.append('* ')
         ans.append(field.name)
         if field.foreign_key:
-            ans.append('▷%s.%s' % (field.foreign_key.table.name, field.foreign_key.name))
+            ans.append('▷%s.%s' % (
+                field.foreign_key.table.name, field.foreign_key.name))
         for f in field.referers:
             ans.append('◁%s.%s' % (f.table.name, f.name))       
         self.emit(*ans)
@@ -341,21 +342,21 @@ class SQLOut(OutputCollector):
             self.emit(' not null', None)
 
     def show_link(self, from_table, from_field, to_table, to_field):
-         # print "-- %s.%s -> %s.%s" % (from_table, from_field, to_table, to_field)
-         ln = "%s_fk_%s_%s" % (from_field, to_table.split('.')[-1], to_field)
-         ln = ln.replace(".",  "_")
+        # print "-- %s.%s -> %s.%s" % (from_table, from_field, to_table, to_field)
+        ln = "%s_fk_%s_%s" % (from_field, to_table.split('.')[-1], to_field)
+        ln = ln.replace(".", "_")
 
-         if ln in self.foreign_key_names:
-             x = 1
-             while (ln+'_'+str(x)) in self.foreign_key_names:
-                 x += 1
+        if ln in self.foreign_key_names:
+            x = 1
+            while (ln+'_'+str(x)) in self.foreign_key_names:
+                x += 1
 
-             ln = ln + '_' + str(x)
+            ln = ln + '_' + str(x)
 
-         self.foreign_key_names.append(ln)
+        self.foreign_key_names.append(ln)
 
-         self.emit('alter table %s add constraint %s foreign key (%s) references %s (%s);' % (
-             from_table, ln, from_field, to_table, to_field))
+        self.emit('alter table %s add constraint %s foreign key (%s) references %s (%s);' % (
+            from_table, ln, from_field, to_table, to_field))
     def stop(self, schema):
         self.emit("commit;")
 class DjangoOut(OutputCollector):
