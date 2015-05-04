@@ -1,3 +1,5 @@
+<!-- Simple DB description, DML, Database Markup Language -->
+<!-- terry_n_brown@yahoo.com -->
 <!ELEMENT dml (name,description*,attr*,log?,table+)>
 <!ELEMENT description (#PCDATA)>
     <!ATTLIST description context CDATA #IMPLIED>
