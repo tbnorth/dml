@@ -395,11 +395,12 @@ class DjangoOut(OutputCollector):
         elif field.is_many_to_many() or 'dj_m2m_target' in field.attr:
             
             if 'dj_m2m_target' in field.attr:  # simple case where django handles intermediate
-                if field.allow_null:
-                    return 'models.ManyToManyField("%s", blank=True)' % (self.upcase(field.attr['dj_m2m_target']))
-                else:
-                    return 'models.ManyToManyField("%s")' % (self.upcase(field.attr['dj_m2m_target']))
-            
+                return 'models.ManyToManyField("%s", blank=%s, related_name="%s")' % (
+                    self.upcase(field.attr['dj_m2m_target']), 
+                    field.allow_null, 
+                    field.attr['dj_m2m_related_name']
+                )
+
             # this is created during parsing, shouldn't appear in user visible graph
             # note link table is probably not defined yet, so use string to refer to it
             
@@ -1092,15 +1093,17 @@ def read_schema(doc):
         if 'dj_m2m_target' in T.attr:
             # let DJango handle simple cases without specifying intermediate table
             # can distinguish because foreign_key is not set
-            t_field_name, t_table_name, allow_null = T.attr.get('dj_m2m_target').strip().split()
-            F = Field(schema[t_table_name])
-            F.m2m_link = True
-            F.attr['dj_m2m_target'] = T.name
-            F.name = t_field_name
-            F.allow_null = any_to_bool(allow_null)
-            assert F.name not in schema[t_table_name].field
-            schema[t_table_name].field[F.name] = F
-            schema[t_table_name].fields.append(F.name)
+            for line in T.attr.get('dj_m2m_target').strip().split('\n'):
+                t_field_name, t_table_name, allow_null = line.split()
+                F = Field(schema[t_table_name])
+                F.m2m_link = True
+                F.attr['dj_m2m_target'] = T.name
+                F.attr['dj_m2m_related_name'] = "%s_%s" % (t_table_name, t_field_name)
+                F.name = t_field_name
+                F.allow_null = any_to_bool(allow_null)
+                assert F.name not in schema[t_table_name].field
+                schema[t_table_name].field[F.name] = F
+                schema[t_table_name].fields.append(F.name)
                     
     return schema
 

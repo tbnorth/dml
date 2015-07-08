@@ -122,7 +122,9 @@ def makedot(xml_, links_only=False, title="dd"):
             if m2m.get('key') != 'dj_m2m_target':
                 continue
             # break
-            dot.append('%s -> %s' % (name, m2m.text.split()[1]))
+            for line in m2m.text.strip().split('\n'):
+                # dot.append('%s -> %s [label="%s"]' % (name, line.split()[1], line.split()[0]))
+                dot.append('%s -> %s' % (name, line.split()[1]))
     
     dot.append('}\n')
     
