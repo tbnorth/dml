@@ -115,11 +115,11 @@ class Field(object):
         return ans
 class OutputCollector(object):
     def __init__(self, *args, **kwargs):
-        
+
         self.opt = kwargs['opt']
         self.arg = kwargs['arg']
         self._output = []
-        
+
     def emit(self, *args):
 
         if args and args[-1] is None:
@@ -157,9 +157,9 @@ class RstOut(OutputCollector):
             ans.append('▷%s.%s' % (
                 field.foreign_key.table.name, field.foreign_key.name))
         for f in field.referers:
-            ans.append('◁%s.%s' % (f.table.name, f.name))       
+            ans.append('◁%s.%s' % (f.table.name, f.name))
         self.emit(*ans)
-        
+
         if field.comment.strip():
             self.emit()
             for l in field.comment.split('\n'):
@@ -174,25 +174,25 @@ class DMLOut(OutputCollector):
         self.db_schema = kwargs.get('db_schema', '')
 
     def start(self, schema):
-        
+
         self.dom = E.dml()
-        
+
         self.dom.append(E.name(schema.get('_name', '') or ''))
         if '_description' in schema:
             self.dom.append(E.description(schema['_description'] or ''))
-            
+
         for i in schema.get('_attr', {}):
             self.dom.append(E.attr(schema['_attr'][i], key=i))
-        
+
         log = E.log(
                 E.log_entry("written by dia2py",
                     date=time.strftime("%Y%m%d %H:%M:%S")))
         self.dom.append(log)
-        
+
         if '_log' in schema:
             for i in schema['_log']:
-                log.append(E.log_entry(i[1], date=i[0]))   
-        
+                log.append(E.log_entry(i[1], date=i[0]))
+
         if schema.get('_db_schema'):
             self.dom.append(E.attr(schema.get('_db_schema'), key='db_namespace'))
     def stop(self, schema):
@@ -208,10 +208,10 @@ class DMLOut(OutputCollector):
     def end_table(self, table):
         pass
     def show_field(self, field):
-        
+
         if field.m2m_link:
             return
-        
+
         fld = E.field(
             E.name(field.name),
             E.description(field.comment),
@@ -219,7 +219,7 @@ class DMLOut(OutputCollector):
         )
         self.table.append(fld)
         atr = fld.attrib
-        
+
         if field.foreign_key:
             fld.append(E.foreign_key(target='_fld_%s_%s' % (
                 field.foreign_key.table.name, field.foreign_key.name)))
@@ -229,7 +229,7 @@ class DMLOut(OutputCollector):
             atr[i] = str(getattr(field, i)).lower()
 
         atr['allow_null'] = 'true' if field.allow_null else 'false'
-            
+
         if not field.editable and 'dj_editable' not in field.attr:
             fld.append(E.attr('false', key='dj_editable'))
 
@@ -259,11 +259,11 @@ class oldDMLOut(OutputCollector):
     def end_table(self, table):
         pass
     def show_field(self, field):
-        
+
         fld = E.field()
         self.table.append(fld)
         atr = fld.attrib
-        
+
         atr['id'] = '_fld_%s_%s' % (field.table.name, field.name)
         for i in 'name', 'type', 'primary_key', 'allow_null', 'editable', 'unique':
             atr[i] = str(getattr(field, i))
@@ -271,7 +271,7 @@ class oldDMLOut(OutputCollector):
         if field.foreign_key:
             fld.append(E.foreign_key(target='_fld_%s_%s' % (
                 field.foreign_key.table.name, field.foreign_key.name)))
-                
+
         fld.append(E.description(field.comment))
     def show_link(self, from_table, from_field, to_table, to_field):
         pass
@@ -295,7 +295,7 @@ class SimpleOut(OutputCollector):
         pass
 class SQLOut(OutputCollector):
     def __init__(self, *args, **kwargs):
-        
+
         OutputCollector.__init__(self, *args, **kwargs)
         self.db_schema = kwargs.get('db_schema', '')
 
@@ -323,7 +323,7 @@ class SQLOut(OutputCollector):
         self.emit(");")
 
         if table.comment:
-            self.emit("comment on table %s is '%s';" % 
+            self.emit("comment on table %s is '%s';" %
                 (table.name, table.comment.replace("'", "''")))
 
         for f in table.fields:
@@ -393,17 +393,17 @@ class DjangoOut(OutputCollector):
         if field.primary_key:
             return 'models.AutoField(primary_key=True)'
         elif field.is_many_to_many() or 'dj_m2m_target' in field.attr:
-            
+
             if 'dj_m2m_target' in field.attr:  # simple case where django handles intermediate
                 return 'models.ManyToManyField("%s", blank=%s, related_name="%s")' % (
-                    self.upcase(field.attr['dj_m2m_target']), 
-                    field.allow_null, 
+                    self.upcase(field.attr['dj_m2m_target']),
+                    field.allow_null,
                     field.attr['dj_m2m_related_name']
                 )
 
             # this is created during parsing, shouldn't appear in user visible graph
             # note link table is probably not defined yet, so use string to refer to it
-            
+
             # need to find name of target table, often but not necesarily the
             # same as this field's name
             d = field.foreign_key.table.field
@@ -428,7 +428,7 @@ class DjangoOut(OutputCollector):
                 target = field.foreign_key
             else:
                 target = field.foreign_key.table.name
-        
+
             if not field.foreign_key_external and target == field.table.name:
                 return 'models.ForeignKey("%s", related_name="%s_set", db_column="%s", %%s)' % (
                     'self', field.name, field.name)
@@ -445,10 +445,10 @@ class DjangoOut(OutputCollector):
                 rel_name = 'related_name="%s", '%field.attr['dj_related_name'] if 'dj_related_name' in field.attr else ''
                 return 'models.ForeignKey(%s, db_column="%s", %s%%s)' % (
                     target_ref, field.name, rel_name)
-                              
+
         elif 'dj_upload' in field.attr:
-            
-            return ('models.FileField(max_length=1024, upload_to=upload_to_%s_%s)' % 
+
+            return ('models.FileField(max_length=1024, upload_to=upload_to_%s_%s)' %
                 (field.table.name, field.name))
 
         elif field.type.split('(')[0].strip() in self.type_lu:
@@ -474,7 +474,7 @@ class DjangoOut(OutputCollector):
         for table in schema['_tables']:
             self.emit("admin.site.register(%s)" % table.capitalize())
         self.emit('"""\n')
-        
+
         self.emit("import re")
         self.emit("""_fp0=re.compile(r'[[\]\\r\\n\\t;: /\\\\"\\'!?*&^%@#$|{}()~`<>=]+')""")
         self.emit("""def fix_path(s):
@@ -502,7 +502,7 @@ class DjangoOut(OutputCollector):
                 print  eval(path)
                 return eval(path)
         """)
-        
+
         # check globals() in case multiple dml2py outputs are concatenated
         self.emit("""if 'md5_calc_targets' not in globals():
             md5_calc_targets = []
@@ -514,14 +514,14 @@ class DjangoOut(OutputCollector):
             pre_save.connect(md5_calc)
         """)
     def start_table(self, table):
-        
+
         self.write_uploaders(table)
-        
+
         if not table.comment:
             comment = 'NO COMMENT SUPPLIED'
         else:
             comment = table.comment
-            
+
         table.attr['dj_description'] = comment
 
         wrapper = textwrap.TextWrapper(initial_indent='    """',
@@ -529,9 +529,9 @@ class DjangoOut(OutputCollector):
 
         self.emit("class %s (models.Model):  # %s" % (self.upcase(table.name), "AUTOMATICALLY GENERATED"))
         self.tables.append(self.upcase(table.name))
-        
+
         self.emit('%s\n    """' % wrapper.fill(comment))
-        
+
         if 'dj_extra_pre' in table.attr:
             self.emit()
             self.emit('\n'.join(["    "+i for i in table.attr['dj_extra_pre'].split('\n')]))
@@ -541,14 +541,17 @@ class DjangoOut(OutputCollector):
         self.emit()
         self.emit('    class Meta:')
         self.emit('        pass')
-        
+
         if self.db_schema is not None:
             self.emit('        db_table = "%s%s"' % (self.db_schema, table.name))
-        
+
+        if table.attr.get('dj_unmanaged'):
+            self.emit('        managed = False')
+
         if table.attr.get('dj_order'):
             self.emit('        ordering = %s' % repr(table.attr.get('dj_order').split()))
         self.emit()
-        
+
         # end of Meta class
 
         # __unicode__
@@ -560,26 +563,26 @@ class DjangoOut(OutputCollector):
         if any([i.type == 'geometry' for i in table.field.values()]):
             self.emit()
             self.emit("    objects = models.GeoManager()\n")
-            
+
         if 'dj_extra_post' in table.attr:
             self.emit()
             self.emit('\n'.join(["    "+i for i in table.attr['dj_extra_post'].split('\n')]))
-            
+
 
 
         self.emit()
     def end_table(self, table):
-        
+
         # must come before attribute writing as may update attributes
         self.write_validators(table)
 
         self.emit()
-        
+
         # DJ complains if attr is present in Meta class def.
         # also, DJ templates can't access attributes starting with '_'
         self.emit()
         self.emit('%s.dml_attr = %s'%(self.upcase(table.name), repr(table.attr)))
-        
+
         self.emit()
 
         # write DML attributes on fields as well
@@ -597,18 +600,18 @@ class DjangoOut(OutputCollector):
                     # self.emit('pre_save.connect(md5_calc)')
                     self.pre_save_connected = True
                 self.emit('md5_calc_targets.append(%s)'%self.upcase(table.name))
-                    
-        
+
+
         self.emit()
     def show_field(self, field):
 
         plural = 's' if field.is_many_to_many() else ''
-        
+
         field.attr['dj_description'] = field.comment
         field.attr['units'] = field.units
 
         mapped_type = self._type_map(field)
-        
+
         if 'models.' in mapped_type:  # extract field type for CSS class
             i = mapped_type.split('models.', 1)[1]
             i = i.split('(', 1)[0]
@@ -635,14 +638,14 @@ class DjangoOut(OutputCollector):
                          kwargs.append('null=True')
             if not field.editable or not any_to_bool(field.attr.get('dj_editable', True)):
                 kwargs.append('editable=False')
-                
-            if field.attr.get('choices'):                   
+
+            if field.attr.get('choices'):
                 kwargs.append('choices=(%s)'%field.attr.get('choices'))
-                
-            if field.attr.get('default'):                   
+
+            if field.attr.get('default'):
                 kwargs.append('default=%s'%field.attr.get('default'))
 
-            if field.comment:                   
+            if field.comment:
                 kwargs.append('help_text=%s'%repr(field.comment))
 
             fld = fld % (', '.join(kwargs))
@@ -670,16 +673,16 @@ class DjangoOut(OutputCollector):
             validators = field.validators
         else:
             validators = table.validators
-            
+
         for validator in validators:
 
             v_name = 'validate_%s' % table.name
             if field:
                 v_name += '_%s' % field.name
-                
+
             v_name += '_%s' % self.validator_id
             self.validator_id += 1
-            
+
             # include **kwargs to make more robust to version changes
             self.emit("def %s(X, pk=None, inlineX={}, **kwargs):" % v_name)
             self.emit('\n    details=""')
@@ -689,29 +692,29 @@ class DjangoOut(OutputCollector):
                 repr(validator['message'])+'+"\\n"+details'
             ))
             self.emit("")
-            
+
             if field:
                 self.emit("dml_dj_add_field_validator(%s, %s, %s)" % (
                     self.upcase(table.name), repr(field.name), v_name))
             else:
                 table.attr.setdefault('dml_validators', []).append(v_name)
-                    
+
         if not field:
             for field_name in table.field:
                 self.write_validators(table, field=table.field[field_name])
 
     def write_uploaders(self, table):
-            
+
         for fieldname in table.fields:
-            
+
             field = table.field[fieldname]
-            
+
             if 'dj_upload' not in field.attr:
                 continue
 
             v_name = 'upload_to_%s' % table.name
             v_name += '_%s' % field.name
-            
+
             self.emit("def %s(instance, filename, mode='make_path'):" % v_name)
             self.emit('\n'.join(["    "+i for i in field.attr['dj_upload'].split('\n')]))
             self.emit("")
@@ -731,7 +734,7 @@ class ImportOut(OutputCollector):
 
         pass
     def end_table(self, table):
-        
+
         pass
     def show_field(self, field):
 
@@ -741,7 +744,7 @@ class ImportOut(OutputCollector):
             self.emit()
             if self.opt.from_schema:
                 self.emit("-- insert into %s (%s) select %s from %s.%s;" % (
-                t, 
+                t,
                 ', '.join(['"%s"'%i for i in field.table.fields]),
                 ', '.join(['"%s"'%i for i in field.table.fields]),
                 self.opt.from_schema,
@@ -757,29 +760,29 @@ FIRST_CONNECT = 12
 NS = { 'dia': "http://www.lysator.liu.se/~alla/dia/" }
 
 def read_dia(doc, schema):
-    
+
     tables = doc.xpath('//dia:object[@type="Database - Table"]', namespaces=NS)
-    
+
     for table in tables:
-    
+
         T = Table()
-    
+
         for i in 'name', 'comment':
             setattr(T, i, table.xpath('./dia:attribute[@name="%s"]/dia:string'%i,
                 namespaces=NS)[0].text.strip('#'))
-    
+
         #X T.name = T.name ???
-    
+
         schema['o2t'][table.get('id')] = T.name
         schema['_tables'].append(T.name)  # for ordering
         schema[T.name] = T
-    
+
         connection = FIRST_CONNECT
-    
+
         fields = table.xpath('.//*[@type="table_attribute"]')
         for field in fields:
             F = Field(T)
-    
+
             # attribs always present even if empty, so
             for i in 'name', 'type', 'comment':
                 val = field.xpath('./dia:attribute[@name="%s"]/dia:string'%i,
@@ -788,7 +791,7 @@ def read_dia(doc, schema):
                 if i == 'comment' and val.strip() == "" and F.type != 'ID':
                     sys.stderr.write("WARNING: %s.%s has no %s\n" %
                         (T.name, F.name, i))
-                    
+
             for tag_char in '-*-':  # FIXME stupid code, - repeated to cover ordering
                 if F.name[0] == tag_char or F.name[-1] == tag_char:
                     F.name = F.name.strip(tag_char)
@@ -800,91 +803,91 @@ def read_dia(doc, schema):
                         T.attr['dj_order'] += F.name
                     if tag_char == "-":
                         F.editable = False
-                        
+
             for i in 'primary_key', 'nullable', 'unique':
                 is_i = field.xpath(
                     './dia:attribute[@name="%s"]/dia:boolean/@val'%i,
                     namespaces=NS)[0]
                 setattr(F, i, is_i == 'true')
-                
+
             F.allow_null = F.nullable
-                
+
             T.fields.append(F.name)  # for ordering
             T.field[F.name] = F
-    
+
             T.c2f[str(connection)] = F.name
             connection += 1
             T.c2f[str(connection)] = F.name
             connection += 1
-    
+
     connections = doc.xpath('//dia:object[@type="Database - Reference"]', namespaces=NS)
-    
+
     for connection in connections:
-    
+
         connects = connection.xpath('.//dia:connection', namespaces=NS)
         if len(connects) != 2:
             sys.stderr.write('Bad connector, does not have 2 connections\n');
             raise SystemExit
-    
+
         from_table = schema[schema['o2t'][connects[0].get('to')]]
         from_field = from_table.field[from_table.c2f[connects[0].get('connection')]]
         to_table = schema[schema['o2t'][connects[1].get('to')]]
         to_field = to_table.field[to_table.c2f[connects[1].get('connection')]]
-    
+
         from_field.foreign_key = to_field
         to_field.referers.append(from_field)
-    
+
         # out.show_link(from_table.name, from_field.name, to_table.name, to_field.name)
 
 
 
 def any_to_bool(s):
-    
+
     if not s:  # 0 and None and "" and []
         return False
-        
+
     s = str(s).strip().lower()
-    
+
     if not s:  # "  "
         return False
-    
+
     if s[0] in 'n0f':  # 'false', 'No', '0', '0.1', 'Foo'
         return False
-        
+
     return True
 
 def read_dml(doc, schema):
-    
+
     dml = doc.getroot()
-    
+
     for i in 'name', 'description':
         xp = dml.xpath(i)
         if xp:
             schema['_'+i] = xp[0].text
         else:
             schema['_'+i] = ''
-            
+
     schema['_attr'] = {}
     for i in dml.xpath('attr'):
         schema['_attr'][i.get('key')] = i.text
-        
+
     schema['_log'] = []
     for i in dml.xpath('log/log_entry'):
         schema['_log'].append((i.get('date'), i.text))
-    
+
     tables = doc.xpath('//table')
-    
+
     for table in tables:  # pass 1 - create fields
-    
+
         T = Table()
-        
+
         T.name = table.xpath('name')[0].text.strip()
-            
+
         T.comment = '\n'.join([
-            i.text or '' 
+            i.text or ''
             for i in table.xpath('./description')[:1]
         ])
-        
+
         T.attr = {'schema_name': schema['_name']}
         for i in table.xpath('attr'):
             T.attr[i.get('key')] = i.text
@@ -897,7 +900,7 @@ def read_dml(doc, schema):
 
 
         #X schema['o2t'][table.get('id')] = T.name
-        
+
         schema['_tables'].append(T.name)  # for ordering
         schema[T.name] = T
 
@@ -908,7 +911,7 @@ def read_dml(doc, schema):
             F.attr = {}
             for i in field.xpath('attr'):
                 F.attr[i.get('key')] = i.text
-                
+
             for i in field.xpath('validator'):
                 F.validators.append({
                     'rule': i.xpath('rule')[0].text,
@@ -921,29 +924,29 @@ def read_dml(doc, schema):
             # attribs always present even if empty, so
             F.name = field.xpath('name')[0].text.strip()
             F.type = field.xpath('type')[0].text.strip()
-                
+
             F.comment = ('\n'.join([
-                i.text or '' 
+                i.text or ''
                 for i in field.xpath('./description')[:1]
             ])).strip()
             F.units = ('\n'.join([i.text or '' for i in field.xpath('./units')])).strip()
-             
+
             T.fields.append(F.name)  # for ordering
             T.field[F.name] = F
-    
+
     for table in tables:  # pass 2 - add links
-    
+
         fields = table.xpath('.//field')
         for field in fields:
-            
+
             for fk in field.xpath('.//foreign_key'):
-                
+
                 target = doc.xpath("//field[@id='%s']"%fk.get('target'))
 
                 from_table = schema[table.xpath('name')[0].text.strip()]
                 from_field = from_table.field[field.xpath('name')[0].text.strip()]
-                
-                if target:                    
+
+                if target:
                     target = target[0]
                     to_table = schema[target.getparent().xpath('name')[0].text.strip()]
                     to_field = to_table.field[target.xpath('name')[0].text.strip()]
@@ -954,30 +957,30 @@ def read_dml(doc, schema):
                     from_field.foreign_key = fk.get('target')
                     from_field.foreign_key_external = True
 def read_dml_old(doc, schema):
-    
+
     if doc.getroot().get('db_schema'):
         schema['_db_schema'] = doc.getroot().get('db_schema')
-    
+
     tables = doc.xpath('//table')
-    
+
     for table in tables:  # pass 1 - create fields
-    
+
         T = Table()
-        
+
         for i in ['name']:
             setattr(T, i, table.get(i))
-            
+
         T.comment = '\n'.join([i.text or '' for i in table.xpath('./description')])
 
         #X schema['o2t'][table.get('id')] = T.name
-        
+
         schema['_tables'].append(T.name)  # for ordering
         schema[T.name] = T
 
         fields = table.xpath('.//field')
         for field in fields:
             F = Field(T)
-    
+
             for i in ['primary_key', 'nullable', 'unique', 'editable']:
                 setattr(F, i, any_to_bool(field.get(i)))
 
@@ -985,71 +988,71 @@ def read_dml_old(doc, schema):
             for i in 'name', 'type':
                 val = field.get(i)
                 setattr(F, i, val)
-                
+
             F.comment = '\n'.join([i.text or '' for i in field.xpath('./description')])
-             
+
             T.fields.append(F.name)  # for ordering
             T.field[F.name] = F
-    
+
     for table in tables:  # pass 2 - add links
-    
+
         fields = table.xpath('.//field')
         for field in fields:
-            
+
             for fk in field.xpath('.//foreign_key'):
-                
+
                 target = doc.xpath("//field[@id='%s']"%fk.get('target'))[0]
 
                 from_table = schema[table.get('name')]
                 from_field = from_table.field[field.get('name')]
                 to_table = schema[target.getparent().get('name')]
                 to_field = to_table.field[target.get('name')]
-            
+
                 from_field.foreign_key = to_field
                 to_field.referers.append(from_field)
 
 
 def read_schema(doc):
-    
+
     schema = {
         'o2t':{},      # table id to name, used by read_dia
         '_tables':[],  # for ordering
     }
 
     tables = doc.xpath('//dia:object[@type="Database - Table"]', namespaces=NS)
-    
+
     if tables:
         read_dia(doc, schema)
     else:
         read_dml(doc, schema)
-    
+
     # now futz with table ordering so foreign_key references are available
     # first find dependencies for each table
     for table in schema['_tables']:
-    
+
         T = schema[table]
-    
+
         T.depends = set()
-    
+
         for field in T.fields:
             F = T.field[field]
             if F.foreign_key and not F.foreign_key_external:
                 T.depends.add(F.foreign_key.table.name)
-    
+
         #D sys.stderr.write('%s: %s\n'%(T.name, T.depends))
-    
-    # then sort accordingly (tried the sort using 
+
+    # then sort accordingly (tried the sort using
     # http://code.activestate.com/recipes/576653/ to get sort (cmp) back,
     # but that doesn't work, so bubble sort style)
     #D sys.stderr.write('%s\n'%str(schema['_tables']))
     start_idx = 0
-    
+
     while start_idx < len(schema['_tables']):
         T = schema[schema['_tables'][start_idx]]
         for idx in range(len(schema['_tables'])-1, start_idx-1, -1):
             # start from end to get max required move
             if (schema['_tables'][idx] in T.depends
-                and not schema['_tables'][idx] == T.name):  
+                and not schema['_tables'][idx] == T.name):
                 # beware self-dependent tables
                 # swap
                 schema['_tables'][start_idx],schema['_tables'][idx] = (
@@ -1058,24 +1061,24 @@ def read_schema(doc):
         else:
             start_idx += 1
     #D sys.stderr.write('%s\n'%str(schema['_tables']))
-    
+
     # add many to many references
     for table in schema['_tables']:
-    
+
         T = schema[table]
         if T.is_many_to_many():
             for f in T.fields[1:]:
                 for t in T.fields[1:]:
-    
+
                     if t == f or T.field[f].type != 'ID' or T.field[t].type != 'ID':
                         continue  # link carries additional info.
-                    
+
                     sys.stderr.write("%s.%s->%s\n" % (table, f, t))
-                    
+
                     try:
                         f_table_name = T.field[f].foreign_key.table.name
                         t_table_name = T.field[t].foreign_key.table.name
-                        
+
                         schema[f_table_name].fields.append(t)
                         F = Field(schema[f_table_name])
                         F.m2m_link = True
@@ -1089,7 +1092,7 @@ def read_schema(doc):
                         sys.stderr.write("Missing <attr key='is_m2m' value='false'/> maybe?\n")
                         sys.stderr.write('\n')
                         raise
-                    
+
         if 'dj_m2m_target' in T.attr:
             # let DJango handle simple cases without specifying intermediate table
             # can distinguish because foreign_key is not set
@@ -1104,17 +1107,10 @@ def read_schema(doc):
                 assert F.name not in schema[t_table_name].field
                 schema[t_table_name].field[F.name] = F
                 schema[t_table_name].fields.append(F.name)
-                    
+
     return schema
 
 def main():
-    parser = optparse.OptionParser()
-    parser.add_option("--mode", default="django",
-        help="Output mode: django (default), SQL, simple")
-    parser.add_option("--from-schema",
-        help="source schema for mode 'import'")
-    
-    opt, arg = parser.parse_args()
     mode = {
         'django': DjangoOut,
         'SQL': SQLOut,
@@ -1123,49 +1119,55 @@ def main():
         'dml': DMLOut,
         'import': ImportOut,
     }
-    
-    
+    parser = optparse.OptionParser()
+    parser.add_option("--mode", default="django",
+        help="Output mode: %s" % ', '.join(mode))
+    parser.add_option("--from-schema",
+        help="source schema for mode 'import'")
+
+    opt, arg = parser.parse_args()
+
     doc = etree.parse(arg[0])
-    
+
     schema = read_schema(doc)
-    
+
     import pprint
     sys.stderr.write(pprint.pformat(schema)+'\n')
-    
+
     out = mode[opt.mode](schema, opt=opt, arg=arg)
     out.start(schema)
-    
+
     # main output pass
     for table in schema['_tables']:
-    
+
         T = schema[table]
-    
+
         out.start_table(T)
-    
+
         for field in T.fields:
             F = T.field[field]
-            
+
             try:
                 out.show_field(F)
             except Exception:
                 sys.stderr.write("Error writing %s.%s\n" % (table, field))
                 raise
-    
+
         out.end_table(T)
-    
+
     # pass for SQL output which uses "alter table" to add links
     for table in schema['_tables']:
-    
+
         T = schema[table]
-    
+
         for field in T.fields:
             F = T.field[field]
             if F.foreign_key and not F.foreign_key_external:
                 out.show_link(T.name, F.name,
                     F.foreign_key.table.name, F.foreign_key.name)
-                    
+
     out.stop(schema)
-    
+
     print out.result()
 
 
