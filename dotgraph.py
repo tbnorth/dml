@@ -7,13 +7,13 @@ import tempfile
 log = sys.stderr.write
 
 def dotgraph(xml_, output=None, links_only=False, title=""):
-    
+
     dot = makedot(xml_, links_only=links_only, title=title)
-    
+
     cmd = subprocess.Popen(['dot', '-Tpdf'], stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, stdin=subprocess.PIPE)
     png, err = cmd.communicate(dot)
-    
+
     if not output:
         tfile, tname = tempfile.mkstemp(dir='/tmp')
         write = lambda x: os.write(tfile, x)
@@ -28,11 +28,11 @@ def dotgraph(xml_, output=None, links_only=False, title=""):
 
     write(png)
     close()
-    
+
     if view:
         os.system('geeqie -t -r file:"%s" &' % tname)
 def makedot(xml_, links_only=False, title="dd"):
-    
+
     dom = etree.fromstring(xml_)
     dot = [
         '\ndigraph tables {',
@@ -48,20 +48,24 @@ def makedot(xml_, links_only=False, title="dd"):
         '_op [width=1.8, label = "OPTIONAL", shape=box, ' \
             'fontcolor="#888888", rank=max];',
         '}',
-        
+
     ]
-    
+
     lu = {}
-    
+
+    # find fields pointed to by Foreign Key fields, don't assume FKs only
+    # point to Primary Keys
+    fk_targets = dom.xpath('//field/foreign_key/@target')
+
     for table in dom.xpath('//table'):
-        
+
         skip = table.xpath('./attr[@key="dot_ignore"]')
         if skip and skip[0].text == 'true':
             continue
-        
+
         name = table.xpath('name')[0].text.strip() + ' [label='
-        
-                    
+
+
         if False:  # old style
             ports = [table]
             for field in table.xpath('./field'):
@@ -74,41 +78,42 @@ def makedot(xml_, links_only=False, title="dd"):
             ports = ['<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR><TD BGCOLOR="#ccccff">%s</TD></TR>' %
                      table.xpath('name')[0].text.strip()]
             for field in table.xpath('./field'):
-                
-                if (links_only and 
+
+                if (links_only and
                     not field.get('primary_key') == 'true' and
+                    not field.get('id') in fk_targets and
                     not field.xpath('.//foreign_key')):
                     continue
-    
+
                 lu[field.get('id')] = "%s:%s" % (
                      table.xpath('name')[0].text.strip(), field.get('id'))
-    
+
                 fname = field.xpath('name')[0].text.strip()
                 if field.get('allow_null') == 'true':
                     fname = '<FONT COLOR="#888888">%s</FONT>' % fname
                 if field.get('primary_key') == 'true':
                     fname = '<FONT COLOR="red">%s</FONT>' % fname
-                    
+
                 attr = ''
                 if (field.get('unique') == 'true' or
                     field.get('primary_key') == 'true'):
                     attr = ' BGCOLOR="#ccffcc"'
-                    
+
                 ports.append('<TR><TD PORT="%s"%s>%s</TD></TR>' % (
                     field.get('id'), attr, fname))
-            
+
             name += '\n'.join(ports)
-                          
+
             name += '</TABLE>>];'
-        
+
         dot.append(name)
-        
+
     for table in dom.xpath('//table'):
-        
+
         skip = table.xpath('./attr[@key="dot_ignore"]')
         if skip and skip[0].text == 'true':
             continue
-        
+
         name = table.xpath('name')[0].text.strip()
         for field in table.xpath('./field'):
             for fk in field.xpath('./foreign_key'):
@@ -117,7 +122,7 @@ def makedot(xml_, links_only=False, title="dd"):
                         lu[fk.get('target')]))
                 else:
                     log("No '%s' target for %s:%s\n" % (fk.get('target'), name, field.get('id')))
-                    
+
         for m2m in table.xpath('./attr'):
             if m2m.get('key') != 'dj_m2m_target':
                 continue
@@ -125,15 +130,15 @@ def makedot(xml_, links_only=False, title="dd"):
             for line in m2m.text.strip().split('\n'):
                 # dot.append('%s -> %s [label="%s"]' % (name, line.split()[1], line.split()[0]))
                 dot.append('%s -> %s' % (name, line.split()[1]))
-    
+
     dot.append('}\n')
-    
+
     dot = '\n'.join(dot)
-    
+
     return dot
 
 def main():
-    
+
     links_only = False
     if '--links-only' in sys.argv:
         links_only = True
@@ -144,6 +149,6 @@ def main():
     else:
         output = None
     dotgraph(open(filename).read(), output=output, links_only=links_only)
-    
+
 if __name__ == "__main__":
     main()
