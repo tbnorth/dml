@@ -699,6 +699,12 @@ class DjangoOut(OutputCollector):
                     ]
                 )
             )
+        else:
+            for name in 'name', 'description':
+                if name in table.field:
+                    self.emit('    def __str__(self):')
+                    self.emit("        return self.%s" % name)
+                    break
 
         if any([i.type == 'geometry' for i in table.field.values()]):
             self.emit()
