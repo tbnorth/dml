@@ -31,6 +31,7 @@ heading, and 5 on the bottom)
 from lxml import etree
 from lxml.builder import E
 
+import json
 import sys
 import textwrap
 import optparse
@@ -140,7 +141,7 @@ class OutputCollector(object):
         if args and args[-1] is None:
             self._output.append(' '.join(args[:-1]))
         else:
-            self._output.append(' '.join(args) + '\n')
+            self._output.append(' '.join(i + '\n' for i in args))
 
     def result(self):
 
@@ -193,6 +194,41 @@ class RstOut(OutputCollector):
         pass
 
 
+class JSONOut(OutputCollector):
+    def start(self, schema):
+        self.top = {'tables': []}
+
+    def stop(self, schema):
+        self.emit(json.dumps(self.top, indent=4))
+
+    def start_table(self, table):
+        self.top['tables'].append({'name': table.name, 'fields': []})
+
+    def end_table(self, table):
+        pass
+
+    def show_field(self, field):
+
+        fld_dict = {
+            'name': field.name,
+            'primary_key': field.primary_key,
+            'comment': field.comment,
+        }
+        self.top['tables'][-1]['fields'].append(fld_dict)
+        if field.foreign_key:
+            fld_dict['foreign_key'] = {
+                'table': field.foreign_key.table.name,
+                'field': field.foreign_key.name,
+            }
+        for f in field.referers:
+            fld_dict.setdefault('referers', []).append(
+                {'table': f.table.name, 'field': f.name}
+            )
+
+    def show_link(self, from_table, from_field, to_table, to_field):
+        pass
+
+
 class DMLOut(OutputCollector):
     def __init__(self, *args, **kwargs):
         OutputCollector.__init__(self, *args, **kwargs)
@@ -226,7 +262,7 @@ class DMLOut(OutputCollector):
             )
 
     def stop(self, schema):
-        self.emit(etree.tostring(self.dom, pretty_print=True))
+        self.emit(etree.tostring(self.dom, pretty_print=True).decode('utf-8'))
 
     def start_table(self, table):
         self.table = E.table(E.name(table.name))
@@ -934,8 +970,7 @@ class ImportOut(OutputCollector):
                 )
             self.emit(
                 "select setval('%s_%s_seq', "
-                "coalesce((select max(%s) from %s), 0));"
-                % (t, f, f, t)
+                "coalesce((select max(%s) from %s), 0));" % (t, f, f, t)
             )
 
     def show_link(self, from_table, from_field, to_table, to_field):
@@ -1356,6 +1391,7 @@ def main():
         'rst': RstOut,
         'dml': DMLOut,
         'import': ImportOut,
+        'json': JSONOut,
     }
     parser = optparse.OptionParser()
     parser.add_option(
