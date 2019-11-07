@@ -30,6 +30,7 @@ heading, and 5 on the bottom)
 
 from lxml import etree
 from lxml.builder import E
+import yaml
 
 import json
 import sys
@@ -227,6 +228,11 @@ class JSONOut(OutputCollector):
 
     def show_link(self, from_table, from_field, to_table, to_field):
         pass
+
+
+class YAMLOut(JSONOut):
+    def stop(self, schema):
+        self.emit(yaml.dump(self.top, sort_keys=False))
 
 
 class DMLOut(OutputCollector):
@@ -1392,6 +1398,7 @@ def main():
         'dml': DMLOut,
         'import': ImportOut,
         'json': JSONOut,
+        'yaml': YAMLOut,
     }
     parser = optparse.OptionParser()
     parser.add_option(
