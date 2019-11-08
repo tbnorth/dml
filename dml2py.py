@@ -197,13 +197,19 @@ class RstOut(OutputCollector):
 
 class JSONOut(OutputCollector):
     def start(self, schema):
-        self.top = {'tables': []}
+        self.top = {
+            'name': schema['_name'],
+            'description': schema['_description'],
+            'tables': [],
+        }
 
     def stop(self, schema):
         self.emit(json.dumps(self.top, indent=4))
 
     def start_table(self, table):
-        self.top['tables'].append({'name': table.name, 'fields': []})
+        self.top['tables'].append(
+            {'name': table.name, 'description': table.comment, 'fields': []}
+        )
 
     def end_table(self, table):
         pass
@@ -212,9 +218,14 @@ class JSONOut(OutputCollector):
 
         fld_dict = {
             'name': field.name,
-            'primary_key': field.primary_key,
-            'comment': field.comment,
+            'description': field.comment,
+            'type': field.type,
         }
+        for k in 'primary_key', 'unique', 'allow_null':
+            if getattr(field, k):
+                fld_dict[k] = getattr(field, k)
+        if field.primary_key or field.foreign_key and not field.comment:
+            del fld_dict['description']
         self.top['tables'][-1]['fields'].append(fld_dict)
         if field.foreign_key:
             fld_dict['foreign_key'] = {
@@ -1263,38 +1274,45 @@ def read_yaml(path):
             F.validators = field.get('validators', [])
 
             for i in 'primary_key', 'allow_null', 'unique':
-                setattr(F, i, any_to_bool(field.get(i)))
+                if field.get(i):
+                    setattr(F, i, any_to_bool(field.get(i)))
 
             F.name = field.get('name', 'NONAME')
             F.type = field.get('type', 'NOTYPE')
+            if F.type == 'NOTYPE' and F.fk:
+                F.type = 'FK_LINK_TYPE'
+            if F.type == 'NOTYPE' and F.primary_key:
+                F.type = 'PK_TYPE'
             F.units = field.get('units', 'NOUNITS')
 
-            F.comment = field.get('comment', '').strip()
+            F.comment = field.get('description', '').strip()
 
             T.fields.append(F.name)  # for ordering
             T.field[F.name] = F
 
     for table in schema['_tables']:
-        from_table = schema[table]
         # pass 2 - add links, field.fk is {'table':str, 'field':str}
+        from_table = schema[table]
         for field in [i for i in from_table.fields if from_table.field[i].fk]:
             from_field = from_table.field[field]
 
             to_table = from_field.fk['table']
             to_field = from_field.fk['field']
 
-            if (
-                schema.get(to_table) and schema[to_table].field.get(to_field)
-            ):
+            if schema.get(to_table) and schema[to_table].field.get(to_field):
                 # target in current schema
                 from_field.foreign_key = schema[to_table].field[to_field]
                 schema[to_table].field[to_field].referers.append(from_field)
                 from_field.foreign_key_external = False
             else:  # assume external defintion
-                from_field.foreign_key = "%s.%s" % (from_field.fk['table'], from_field.fk['field'])
+                from_field.foreign_key = "%s.%s" % (
+                    from_field.fk['table'],
+                    from_field.fk['field'],
+                )
                 from_field.foreign_key_external = True
 
     return schema
+
 
 def read_dml_old(doc, schema):
 

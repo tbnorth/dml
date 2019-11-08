@@ -10,12 +10,16 @@ log = sys.stderr.write
 def dotgraph(xml_, output=None, links_only=False, title=""):
 
     dot = makedot(xml_, links_only=links_only, title=title)
+    if output:
+        with open(output+'.dot', 'w') as out:
+            out.write(dot)
 
     cmd = subprocess.Popen(
         ['dot', '-Tpdf'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         stdin=subprocess.PIPE,
+        env=os.environ.copy(),
     )
     png, err = cmd.communicate(dot)
 
