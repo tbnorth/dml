@@ -6,12 +6,17 @@ import tempfile
 
 log = sys.stderr.write
 
+
 def dotgraph(xml_, output=None, links_only=False, title=""):
 
     dot = makedot(xml_, links_only=links_only, title=title)
 
-    cmd = subprocess.Popen(['dot', '-Tpdf'], stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+    cmd = subprocess.Popen(
+        ['dot', '-Tpdf'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,
+    )
     png, err = cmd.communicate(dot)
 
     if not output:
@@ -31,6 +36,8 @@ def dotgraph(xml_, output=None, links_only=False, title=""):
 
     if view:
         os.system('geeqie -t -r file:"%s" &' % tname)
+
+
 def makedot(xml_, links_only=False, title="dd"):
 
     dom = etree.fromstring(xml_)
@@ -39,16 +46,15 @@ def makedot(xml_, links_only=False, title="dd"):
         'graph [rankdir = RL, label="%s", labelloc=t];' % title,
         'node [shape = plaintext];',
         'subgraph cluster_key { label=Key;',
-        '_tn [width=1.8, label = "TABLE NAME", filled=True, shape=box, ' \
-            'style=filled, fillcolor="#ccccff", rank=max];',
-        '_pk [width=1.8, label = "PRIMARY KEY", shape=box, ' \
-            'fontcolor="red", rank=max];',
-        '_un [width=1.8, label = "UNIQUE", filled=True, shape=box, ' \
-            'style=filled, fillcolor="#ccffcc", rank=min];',
-        '_op [width=1.8, label = "OPTIONAL", shape=box, ' \
-            'fontcolor="#888888", rank=max];',
+        '_tn [width=1.8, label = "TABLE NAME", filled=True, shape=box, '
+        'style=filled, fillcolor="#ccccff", rank=max];',
+        '_pk [width=1.8, label = "PRIMARY KEY", shape=box, '
+        'fontcolor="red", rank=max];',
+        '_un [width=1.8, label = "UNIQUE", filled=True, shape=box, '
+        'style=filled, fillcolor="#ccffcc", rank=min];',
+        '_op [width=1.8, label = "OPTIONAL", shape=box, '
+        'fontcolor="#888888", rank=max];',
         '}',
-
     ]
 
     lu = {}
@@ -65,28 +71,44 @@ def makedot(xml_, links_only=False, title="dd"):
 
         name = table.xpath('name')[0].text.strip() + ' [label='
 
-
         if False:  # old style
             ports = [table]
             for field in table.xpath('./field'):
                 lu[field.get('id')] = "%s:%s" % (
-                     table.xpath('name')[0].text.strip(), field.get('id'))
+                    table.xpath('name')[0].text.strip(),
+                    field.get('id'),
+                )
                 ports.append(field)
-            name += '|'.join(["<%s> %s" % (i.get('id'), i.xpath('name')[0].text.strip())
-                              for i in ports]) + '"'
+            name += (
+                '|'.join(
+                    [
+                        "<%s> %s"
+                        % (i.get('id'), i.xpath('name')[0].text.strip())
+                        for i in ports
+                    ]
+                )
+                + '"'
+            )
         else:
-            ports = ['<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR><TD BGCOLOR="#ccccff">%s</TD></TR>' %
-                     table.xpath('name')[0].text.strip()]
+            ports = [
+                '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR>'
+                '<TD BGCOLOR="#ccccff">%s</TD></TR>'
+                % table.xpath('name')[0].text.strip()
+            ]
             for field in table.xpath('./field'):
 
-                if (links_only and
-                    not field.get('primary_key') == 'true' and
-                    not field.get('id') in fk_targets and
-                    not field.xpath('.//foreign_key')):
+                if (
+                    links_only
+                    and not field.get('primary_key') == 'true'
+                    and not field.get('id') in fk_targets
+                    and not field.xpath('.//foreign_key')
+                ):
                     continue
 
                 lu[field.get('id')] = "%s:%s" % (
-                     table.xpath('name')[0].text.strip(), field.get('id'))
+                    table.xpath('name')[0].text.strip(),
+                    field.get('id'),
+                )
 
                 fname = field.xpath('name')[0].text.strip()
                 if field.get('allow_null') == 'true':
@@ -95,12 +117,16 @@ def makedot(xml_, links_only=False, title="dd"):
                     fname = '<FONT COLOR="red">%s</FONT>' % fname
 
                 attr = ''
-                if (field.get('unique') == 'true' or
-                    field.get('primary_key') == 'true'):
+                if (
+                    field.get('unique') == 'true'
+                    or field.get('primary_key') == 'true'
+                ):
                     attr = ' BGCOLOR="#ccffcc"'
 
-                ports.append('<TR><TD PORT="%s"%s>%s</TD></TR>' % (
-                    field.get('id'), attr, fname))
+                ports.append(
+                    '<TR><TD PORT="%s"%s>%s</TD></TR>'
+                    % (field.get('id'), attr, fname)
+                )
 
             name += '\n'.join(ports)
 
@@ -118,17 +144,23 @@ def makedot(xml_, links_only=False, title="dd"):
         for field in table.xpath('./field'):
             for fk in field.xpath('./foreign_key'):
                 if fk.get('target') in lu:
-                    dot.append('%s:%s -> %s' % (name, field.get('id'),
-                        lu[fk.get('target')]))
+                    dot.append(
+                        '%s:%s -> %s'
+                        % (name, field.get('id'), lu[fk.get('target')])
+                    )
                 else:
-                    log("No '%s' target for %s:%s\n" % (fk.get('target'), name, field.get('id')))
+                    log(
+                        "No '%s' target for %s:%s\n"
+                        % (fk.get('target'), name, field.get('id'))
+                    )
 
         for m2m in table.xpath('./attr'):
             if m2m.get('key') != 'dj_m2m_target':
                 continue
             # break
             for line in m2m.text.strip().split('\n'):
-                # dot.append('%s -> %s [label="%s"]' % (name, line.split()[1], line.split()[0]))
+                # dot.append('%s -> %s [label="%s"]' %
+                # (name, line.split()[1], line.split()[0]))
                 dot.append('%s -> %s' % (name, line.split()[1]))
 
     dot.append('}\n')
@@ -136,6 +168,7 @@ def makedot(xml_, links_only=False, title="dd"):
     dot = '\n'.join(dot)
 
     return dot
+
 
 def main():
 
@@ -149,6 +182,7 @@ def main():
     else:
         output = None
     dotgraph(open(filename).read(), output=output, links_only=links_only)
+
 
 if __name__ == "__main__":
     main()
