@@ -218,8 +218,12 @@ class JSONOut(OutputCollector):
         self.top['tables'][-1]['fields'].append(fld_dict)
         if field.foreign_key:
             fld_dict['foreign_key'] = {
-                'table': field.foreign_key.table.name,
-                'field': field.foreign_key.name,
+                'table': field.foreign_key
+                if isinstance(field.foreign_key, str)
+                else field.foreign_key.table.name,
+                'field': 'N/A'
+                if isinstance(field.foreign_key, str)
+                else field.foreign_key.name,
             }
         for f in field.referers:
             fld_dict.setdefault('referers', []).append(
@@ -299,7 +303,14 @@ class DMLOut(OutputCollector):
             fld.append(
                 E.foreign_key(
                     target='_fld_%s_%s'
-                    % (field.foreign_key.table.name, field.foreign_key.name)
+                    % (
+                        (field.foreign_key, 'N/A')
+                        if isinstance(field.foreign_key, str)
+                        else (
+                            field.foreign_key.table.name,
+                            field.foreign_key.name,
+                        )
+                    )
                 )
             )
 
@@ -1216,6 +1227,75 @@ def read_dml(doc, schema):
                     from_field.foreign_key_external = True
 
 
+def read_yaml(path):
+
+    schema = {'_tables': []}
+    dml = yaml.load(open(path))
+
+    schema['_name'] = dml.get('name', '')
+    schema['_description'] = dml.get('description', '')
+
+    schema['_attr'] = {}
+    for k, v in dml.get('attr', {}).items():
+        schema['_attr'][k] = v
+
+    schema['_log'] = [(i.date, i.entry) for i in dml.get('log', [])]
+
+    for table in dml.get('tables', []):  # pass 1 - create fields
+
+        T = Table()
+
+        T.name = table['name'].strip()
+
+        T.comment = table.get('description', '')
+        T.attr = table.get('attr', {})
+        T.attr.update({'schema_name': schema['_name']})
+
+        T.validators = table.get('validators', [])
+
+        schema['_tables'].append(T.name)  # for ordering
+        schema[T.name] = T
+
+        for field in table.get('fields', []):
+            F = Field(T)
+            F.attr = field.get('attr', {})
+            F.fk = field.get('foreign_key', {})
+            F.validators = field.get('validators', [])
+
+            for i in 'primary_key', 'allow_null', 'unique':
+                setattr(F, i, any_to_bool(field.get(i)))
+
+            F.name = field.get('name', 'NONAME')
+            F.type = field.get('type', 'NOTYPE')
+            F.units = field.get('units', 'NOUNITS')
+
+            F.comment = field.get('comment', '').strip()
+
+            T.fields.append(F.name)  # for ordering
+            T.field[F.name] = F
+
+    for table in schema['_tables']:
+        from_table = schema[table]
+        # pass 2 - add links, field.fk is {'table':str, 'field':str}
+        for field in [i for i in from_table.fields if from_table.field[i].fk]:
+            from_field = from_table.field[field]
+
+            to_table = from_field.fk['table']
+            to_field = from_field.fk['field']
+
+            if (
+                schema.get(to_table) and schema[to_table].field.get(to_field)
+            ):
+                # target in current schema
+                from_field.foreign_key = schema[to_table].field[to_field]
+                schema[to_table].field[to_field].referers.append(from_field)
+                from_field.foreign_key_external = False
+            else:  # assume external defintion
+                from_field.foreign_key = "%s.%s" % (from_field.fk['table'], from_field.fk['field'])
+                from_field.foreign_key_external = True
+
+    return schema
+
 def read_dml_old(doc, schema):
 
     if doc.getroot().get('db_schema'):
@@ -1408,9 +1488,12 @@ def main():
 
     opt, arg = parser.parse_args()
 
-    doc = etree.parse(arg[0])
-
-    schema = read_schema(doc)
+    try:
+        doc = etree.parse(arg[0])
+        schema = read_schema(doc)
+    except Exception:
+        sys.stderr.write("Reading XML failed, assuming YAML\n")
+        schema = read_yaml(arg[0])
 
     import pprint
 
