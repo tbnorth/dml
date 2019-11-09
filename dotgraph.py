@@ -21,7 +21,7 @@ def dotgraph(xml_, output=None, links_only=False, title=""):
         stdin=subprocess.PIPE,
         env=os.environ.copy(),
     )
-    png, err = cmd.communicate(dot)
+    png, err = cmd.communicate(dot.encode('utf-8'))
 
     if not output:
         tfile, tname = tempfile.mkstemp(dir='/tmp')
@@ -44,7 +44,7 @@ def dotgraph(xml_, output=None, links_only=False, title=""):
 
 def makedot(xml_, links_only=False, title="dd"):
 
-    dom = etree.fromstring(xml_)
+    dom = etree.fromstring(xml_.encode('utf-8'))
     dot = [
         '\ndigraph tables {',
         'graph [rankdir = RL, label="%s", labelloc=t];' % title,

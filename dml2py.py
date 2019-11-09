@@ -216,6 +216,9 @@ class JSONOut(OutputCollector):
 
     def show_field(self, field):
 
+        if field.m2m_link:
+            return
+
         fld_dict = {
             'name': field.name,
             'description': field.comment,
@@ -268,7 +271,7 @@ class DMLOut(OutputCollector):
 
         log = E.log(
             E.log_entry(
-                "written by dia2py", date=time.strftime("%Y%m%d %H:%M:%S")
+                "written by dml2py.py", date=time.strftime("%Y%m%d %H:%M:%S")
             )
         )
         self.dom.append(log)
@@ -1280,9 +1283,9 @@ def read_yaml(path):
             F.name = field.get('name', 'NONAME')
             F.type = field.get('type', 'NOTYPE')
             if F.type == 'NOTYPE' and F.fk:
-                F.type = 'FK_LINK_TYPE'
+                F.type = 'ID'
             if F.type == 'NOTYPE' and F.primary_key:
-                F.type = 'PK_TYPE'
+                F.type = 'ID'
             F.units = field.get('units', 'NOUNITS')
 
             F.comment = field.get('description', '').strip()
