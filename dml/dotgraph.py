@@ -11,7 +11,7 @@ def dotgraph(xml_, output=None, links_only=False, title=""):
 
     dot = makedot(xml_, links_only=links_only, title=title)
     if output:
-        with open(output+'.dot', 'w') as out:
+        with open(output + '.dot', 'w') as out:
             out.write(dot)
 
     cmd = subprocess.Popen(
@@ -40,6 +40,15 @@ def dotgraph(xml_, output=None, links_only=False, title=""):
 
     if view:
         os.system('geeqie -t -r file:"%s" &' % tname)
+
+
+def get_name(ele):
+    names = ele.xpath('name')
+    if names:
+        name = names[0].text
+    else:
+        name = ele.get('name')
+    return name.strip()
 
 
 def makedot(xml_, links_only=False, title="dd"):
@@ -73,7 +82,7 @@ def makedot(xml_, links_only=False, title="dd"):
         if skip and skip[0].text == 'true':
             continue
 
-        name = table.xpath('name')[0].text.strip() + ' [label='
+        name = get_name(table) + ' [label='
 
         if False:  # old style
             ports = [table]
@@ -96,8 +105,7 @@ def makedot(xml_, links_only=False, title="dd"):
         else:
             ports = [
                 '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR>'
-                '<TD BGCOLOR="#ccccff">%s</TD></TR>'
-                % table.xpath('name')[0].text.strip()
+                '<TD BGCOLOR="#ccccff">%s</TD></TR>' % get_name(table)
             ]
             for field in table.xpath('./field'):
 
@@ -110,11 +118,11 @@ def makedot(xml_, links_only=False, title="dd"):
                     continue
 
                 lu[field.get('id')] = "%s:%s" % (
-                    table.xpath('name')[0].text.strip(),
+                    get_name(table),
                     field.get('id'),
                 )
 
-                fname = field.xpath('name')[0].text.strip()
+                fname = get_name(field)
                 if field.get('allow_null') == 'true':
                     fname = '<FONT COLOR="#888888">%s</FONT>' % fname
                 if field.get('primary_key') == 'true':
@@ -144,7 +152,7 @@ def makedot(xml_, links_only=False, title="dd"):
         if skip and skip[0].text == 'true':
             continue
 
-        name = table.xpath('name')[0].text.strip()
+        name = get_name(table)
         for field in table.xpath('./field'):
             for fk in field.xpath('./foreign_key'):
                 if fk.get('target') in lu:
