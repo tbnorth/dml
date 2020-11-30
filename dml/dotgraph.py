@@ -21,7 +21,7 @@ def dotgraph(xml_, output=None, links_only=False, title=""):
         stdin=subprocess.PIPE,
         env=os.environ.copy(),
     )
-    png, err = cmd.communicate(dot.encode('utf-8'))
+    png, _ = cmd.communicate(dot.encode('utf-8'))
 
     if not output:
         tfile, tname = tempfile.mkstemp(dir='/tmp')
@@ -84,65 +84,46 @@ def makedot(xml_, links_only=False, title="dd"):
 
         name = get_name(table) + ' [label='
 
-        if False:  # old style
-            ports = [table]
-            for field in table.xpath('./field'):
-                lu[field.get('id')] = "%s:%s" % (
-                    table.xpath('name')[0].text.strip(),
-                    field.get('id'),
-                )
-                ports.append(field)
-            name += (
-                '|'.join(
-                    [
-                        "<%s> %s"
-                        % (i.get('id'), i.xpath('name')[0].text.strip())
-                        for i in ports
-                    ]
-                )
-                + '"'
+        ports = [
+            '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR>'
+            '<TD BGCOLOR="#ccccff">%s</TD></TR>' % get_name(table)
+        ]
+        for field in table.xpath('./field'):
+
+            if (
+                links_only
+                and not field.get('primary_key') == 'true'
+                and not field.get('id') in fk_targets
+                and not field.xpath('.//foreign_key')
+            ):
+                continue
+
+            lu[field.get('id')] = "%s:%s" % (
+                get_name(table),
+                field.get('id'),
             )
-        else:
-            ports = [
-                '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR>'
-                '<TD BGCOLOR="#ccccff">%s</TD></TR>' % get_name(table)
-            ]
-            for field in table.xpath('./field'):
 
-                if (
-                    links_only
-                    and not field.get('primary_key') == 'true'
-                    and not field.get('id') in fk_targets
-                    and not field.xpath('.//foreign_key')
-                ):
-                    continue
+            fname = get_name(field)
+            if field.get('allow_null') == 'true':
+                fname = '<FONT COLOR="#888888">%s</FONT>' % fname
+            if field.get('primary_key') == 'true':
+                fname = '<FONT COLOR="red">%s</FONT>' % fname
 
-                lu[field.get('id')] = "%s:%s" % (
-                    get_name(table),
-                    field.get('id'),
-                )
+            attr = ''
+            if (
+                field.get('unique') == 'true'
+                or field.get('primary_key') == 'true'
+            ):
+                attr = ' BGCOLOR="#ccffcc"'
 
-                fname = get_name(field)
-                if field.get('allow_null') == 'true':
-                    fname = '<FONT COLOR="#888888">%s</FONT>' % fname
-                if field.get('primary_key') == 'true':
-                    fname = '<FONT COLOR="red">%s</FONT>' % fname
+            ports.append(
+                '<TR><TD PORT="%s"%s>%s</TD></TR>'
+                % (field.get('id'), attr, fname)
+            )
 
-                attr = ''
-                if (
-                    field.get('unique') == 'true'
-                    or field.get('primary_key') == 'true'
-                ):
-                    attr = ' BGCOLOR="#ccffcc"'
+        name += '\n'.join(ports)
 
-                ports.append(
-                    '<TR><TD PORT="%s"%s>%s</TD></TR>'
-                    % (field.get('id'), attr, fname)
-                )
-
-            name += '\n'.join(ports)
-
-            name += '</TABLE>>];'
+        name += '</TABLE>>];'
 
         dot.append(name)
 

@@ -208,7 +208,12 @@ class JSONOut(OutputCollector):
 
     def start_table(self, table):
         self.top['tables'].append(
-            {'name': table.name, 'description': table.comment, 'fields': []}
+            {
+                'name': table.name,
+                'description': table.comment,
+                'fields': [],
+                'attr': table.attr,
+            }
         )
 
     def end_table(self, table):
