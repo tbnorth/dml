@@ -228,6 +228,7 @@ class JSONOut(OutputCollector):
             'name': field.name,
             'description': field.comment,
             'type': field.type,
+            'attr': field.attr,
         }
         for k in 'primary_key', 'unique', 'allow_null':
             if getattr(field, k):
