@@ -1250,7 +1250,7 @@ def read_dml(doc, schema):
 def read_yaml(path):
 
     schema = {'_tables': []}
-    dml = yaml.load(open(path))
+    dml = yaml.safe_load(open(path))
 
     schema['_name'] = dml.get('name', '')
     schema['_description'] = dml.get('description', '')
