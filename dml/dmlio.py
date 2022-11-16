@@ -588,7 +588,8 @@ class DjangoOut(OutputCollector):
 
             if not field.foreign_key_external and target == field.table.name:
                 return (
-                    'models.ForeignKey("%s", related_name="%s_set", '
+                    'models.ForeignKey("%s", on_delete=models.PROTECT, '
+                    'related_name="%s_set", '
                     'db_column="%s", %%s)' % ('self', field.name, field.name)
                 )
             else:
@@ -608,11 +609,12 @@ class DjangoOut(OutputCollector):
                     if 'dj_related_name' in field.attr
                     else ''
                 )
-                return 'models.ForeignKey(%s, db_column="%s", %s%%s)' % (
+                return ('models.ForeignKey(%s, on_delete=models.PROTECT, '
+                       'db_column="%s", %s%%s)' % (
                     target_ref,
                     field.name,
                     rel_name,
-                )
+                ))
 
         elif 'dj_upload' in field.attr:
 
@@ -690,17 +692,17 @@ class DjangoOut(OutputCollector):
         )
 
         # check globals() in case multiple dml2py outputs are concatenated
-        self.emit(
-            """if 'md5_calc_targets' not in globals():
-            md5_calc_targets = []
-            def md5_calc(sender, instance, *args, **kwargs):
-                if sender in md5_calc_targets:
-                    DFile = instance.path
-                    DFile.seek(0)
-                    instance.md5 = md5.new(DFile.read()).hexdigest()
-            pre_save.connect(md5_calc)
-        """
-        )
+        # self.emit(
+        #     """if 'md5_calc_targets' not in globals():
+        #     md5_calc_targets = []
+        #     def md5_calc(sender, instance, *args, **kwargs):
+        #         if sender in md5_calc_targets:
+        #             DFile = instance.path
+        #             DFile.seek(0)
+        #             instance.md5 = md5.new(DFile.read()).hexdigest()
+        #     pre_save.connect(md5_calc)
+        # """
+        # )
 
     def start_table(self, table):
 
