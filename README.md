@@ -16,23 +16,23 @@ a domain aware XML editing environment.
 | Format       | Read | Write | Status                   |
 | ---          | ---  | ---   | ---                      |
 | DIA          | Y    | N     | Broken, deprecated       |
-| Django model | N    | Y     | Needs update to Django 3 |
+| Django model | N    | Y     | Working, Django 4 only   |
 | JSON         | Y    | Y     | Good                     |
 | Leo          | Y    | Y     | Broken, deprecated       |
 | MDB          | Y    | N     | ???                      |
 | PDF          | N    | Y     | Write via dot            |
 | PNG          | N    | Y     | Write via dot            |
-| SQL          | ?    | Y     | Good                     |
+| SQL          | ?    | Y     | Untested                 |
 | SVG          | N    | Y     | Write via dot            |
-| XML          | Y    | Y     | Good                     |
-| YAML         | Y    | Y     | Good                     |
-| dot          | N    | Y     | Good                     |
+| XML          | Y    | Y     | Working                  |
+| YAML         | Y    | Y     | Working                  |
+| dot          | N    | Y     | Working                  |
 
-## Current (2020-11) status
+## Current (2022) status
 
-Needs major cleanup and tests, "Good" in the table above indicates intent, not
-that it's currently working.
+Round tripping XML / JSON / YAML, writes usable Django 4 models.
 
+### Old note
 Need to resolve issue with XML:
 
 ```xml
